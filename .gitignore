@@ -1,0 +1,17 @@
+# Секреты и локальные данные
+secrets.env
+data.db
+tunnel.url
+logs/
+cloudflared.exe
+cloudflared.exe.part
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Node
+webapp/node_modules/
+*.db-wal
+*.db-shm

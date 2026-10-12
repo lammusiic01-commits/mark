@@ -1,0 +1,1 @@
+import{o as e,c as t,F as n,r,v as a}from"./index-CDiA1lUL.js";const c={class:"stack"},m={__name:"Skeleton",props:{height:{type:Number,default:64},lines:{type:Number,default:1}},setup(s){return(o,i)=>(e(),t("div",c,[(e(!0),t(n,null,r(s.lines,l=>(e(),t("div",{key:l,class:"skeleton",style:a({height:s.height+"px"})},null,4))),128))]))}};export{m as _};

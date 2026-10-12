@@ -1,0 +1,1 @@
+import{B as i}from"./index-CDiA1lUL.js";function o(a="light"){var c,t;try{(t=(c=i)==null?void 0:c.HapticFeedback)==null||t.impactOccurred(a)}catch{}}function p(a="success"){var c,t;try{(t=(c=i)==null?void 0:c.HapticFeedback)==null||t.notificationOccurred(a)}catch{}}export{p as a,o as h};

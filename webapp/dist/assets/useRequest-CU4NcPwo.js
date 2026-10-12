@@ -1,0 +1,1 @@
+import{h as t}from"./index-CDiA1lUL.js";function c(n){const e=t(null),a=t(!1),u=t("");async function r(...l){a.value=!0,u.value="";try{e.value=await n(...l)}catch(s){u.value=s.message||"Неизвестная ошибка"}finally{a.value=!1}return e.value}return{data:e,loading:a,error:u,run:r}}export{c as u};

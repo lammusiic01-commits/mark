@@ -1,0 +1,1 @@
+import{o as n,c as t,y as r,n as o}from"./index-CDiA1lUL.js";const d={__name:"Badge",props:{tone:{type:String,default:"neutral"}},setup(e){return(a,c)=>(n(),t("span",{class:o(["badge",{"badge-accent":e.tone==="accent","badge-green":e.tone==="green","badge-red":e.tone==="red","badge-amber":e.tone==="amber"}])},[r(a.$slots,"default")],2))}};export{d as _};

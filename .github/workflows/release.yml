@@ -1,0 +1,58 @@
+name: Build & Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build WebApp
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run build
+
+      - name: Create ZIP
+        run: |
+          zip -r ai-marketer-${{ github.ref_name }}.zip . \
+            -x "*.git*" \
+            -x "*/node_modules/*" \
+            -x "webapp/src/*" \
+            -x "webapp/package*.json" \
+            -x "webapp/vite.config.js" \
+            -x "*/__pycache__/*" \
+            -x "*/venv/*" \
+            -x "secrets.env" \
+            -x "data.db" \
+            -x "cloudflared.exe" \
+            -x "tunnel.url" \
+            -x "logs/*" \
+            -x "*.pyc" \
+            -x "tests/*"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ai-marketer-${{ github.ref_name }}.zip
+          body: |
+            ## AI Маркетолог ${{ github.ref_name }}
+
+            ### Установка (Windows)
+            1. Скачай ZIP ниже
+            2. Распакуй
+            3. Двойной клик на **start.bat**
+            4. Заполни `secrets.env`
+            5. Запусти `start.bat` снова
+            6. Открой бота в Telegram → /start → "Открыть приложение"
+
+            ### Требования
+            - Windows 10/11
+            - Python 3.11+ ([скачать](https://python.org))
+            - Cloudflare Worker для прокси TG API (уже настроен)
