@@ -89,6 +89,12 @@ jobs:
             tail -n 30 pytest.log 2>/dev/null || echo "лог не создан"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # Упавшие проверки показываем пометками: так их видно и в GitHub, и в API
+          if [ -f pytest.log ]; then
+            grep -E "^(FAILED|ERROR)|^E  " pytest.log | tail -n 10 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi
 
   # ─── 1b. Проверка Mini App ───────────────────────────────────
   webapp:
