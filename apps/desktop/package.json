@@ -1,0 +1,29 @@
+{
+  "name": "mark-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MARK Desktop — окно входа в сервисы + локальный сервер",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "ru.mark.platform",
+    "productName": "MARK",
+    "files": ["main.cjs", "preload.cjs", "login.html", "package.json"],
+    "extraResources": [
+      { "from": "../..", "to": "repo", "filter": ["**/*", "!**/node_modules/**", "!**/.git/**", "!.data/**", "!**/dist/**"] }
+    ],
+    "directories": { "output": "release" },
+    "win": { "target": ["nsis", "zip"] },
+    "mac": { "target": ["dmg"] },
+    "linux": { "target": ["AppImage"] }
+  }
+}

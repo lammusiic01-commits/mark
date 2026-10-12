@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MARK Desktop — панель подключений</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: #111a2e;
+        --border: #22304f;
+        --text: #e6ecf7;
+        --muted: #93a3bf;
+        --brand: #2563eb;
+        --accent: #0ea5e9;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 600px at 20% -10%, #16233d, var(--bg));
+        color: var(--text);
+        font: 14px/1.5 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+        min-height: 100vh;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--border);
+      }
+      .logo {
+        width: 38px; height: 38px; border-radius: 11px;
+        background: linear-gradient(140deg, var(--brand), var(--accent));
+        display: grid; place-items: center; font-weight: 800; letter-spacing: 0.5px;
+      }
+      header h1 { font-size: 17px; margin: 0; }
+      header .sub { color: var(--muted); font-size: 12px; }
+      main { padding: 20px 22px 28px; display: grid; gap: 14px; }
+      .card {
+        background: linear-gradient(180deg, rgba(17,26,46,0.96), rgba(17,26,46,0.82));
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+      }
+      .card h2 { font-size: 14px; margin: 0 0 4px; }
+      .card p { margin: 0 0 12px; color: var(--muted); font-size: 12.5px; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+      .row.between { justify-content: space-between; }
+      button {
+        appearance: none; border: 1px solid var(--border); background: #16203a; color: var(--text);
+        padding: 9px 14px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 600;
+      }
+      button:hover { border-color: #35507f; }
+      button.primary { background: linear-gradient(140deg, var(--brand), var(--accent)); border-color: transparent; }
+      button.ghost { background: transparent; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700;
+        padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted);
+      }
+      .pill.ok { color: #86efac; border-color: #1d4d33; background: rgba(34,197,94,0.12); }
+      .pill.bad { color: #fca5a5; border-color: #5a2020; background: rgba(239,68,68,0.12); }
+      .pill.warn { color: #fcd34d; border-color: #5a4415; background: rgba(245,158,11,0.12); }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .kv { display: grid; gap: 6px; }
+      .kv div { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
+      .kv span { color: var(--muted); }
+      code, .mono { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 12px; }
+      input {
+        width: 100%; background: #0d1526; border: 1px solid var(--border); color: var(--text);
+        border-radius: 9px; padding: 9px 11px; font-size: 12.5px;
+      }
+      pre.log {
+        margin: 0; max-height: 168px; overflow: auto; background: #080e1b; border: 1px solid var(--border);
+        border-radius: 10px; padding: 10px 12px; font-size: 11.5px; color: #9fb3d1; white-space: pre-wrap;
+      }
+      .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+      .steps { display: grid; gap: 8px; margin-top: 6px; }
+      .step { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; color: var(--muted); }
+      .step b { color: var(--text); font-weight: 600; }
+      .num {
+        flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%; background: #1b2745;
+        display: grid; place-items: center; font-size: 11px; color: var(--text); font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">M</div>
+      <div>
+        <h1>MARK Desktop</h1>
+        <div class="sub">Окно входа в сервисы и запуск локального сервера</div>
+      </div>
+      <div style="margin-left: auto" class="row">
+        <span class="pill" id="api-pill"><span class="dot"></span> API: проверяю…</span>
+        <span class="pill" id="server-pill">Сервер: —</span>
+      </div>
+    </header>
+
+    <main>
+      <div class="card">
+        <div class="row between">
+          <div>
+            <h2>Интерфейс MARK</h2>
+            <p>Откроется в отдельном окне приложения: дашборд, подключения, сайты, GEO, кампании, отчёты.</p>
+          </div>
+          <button class="primary" id="open-mark">Открыть MARK</button>
+        </div>
+        <div class="hint">Адрес API: <code id="api-url">—</code> · приложение: <code id="app-url">—</code></div>
+      </div>
+
+      <div class="card">
+        <div class="row between">
+          <div>
+            <h2>Окно входа в сервис</h2>
+            <p>
+              Сервис открывается внутри приложения. Войдите как обычно (пароль, СМС, капча — у вас),
+              затем нажмите «Сохранить сессию»: MARK получит cookies и дальше будет управлять сервисом сам.
+            </p>
+          </div>
+          <span class="pill" id="login-pill">Окно не открыто</span>
+        </div>
+
+        <div class="steps">
+          <div class="step"><div class="num">1</div><div>В интерфейсе MARK откройте <b>Подключения</b> → выберите сервис → <b>Окно в приложении</b>.</div></div>
+          <div class="step"><div class="num">2</div><div>Войдите в аккаунт сервиса в появившемся окне.</div></div>
+          <div class="step"><div class="num">3</div><div>Вернитесь сюда и нажмите <b>Сохранить сессию</b> — или включите автосохранение ниже.</div></div>
+        </div>
+
+        <div class="row" style="margin-top: 14px">
+          <button class="primary" id="save-session" disabled>Сохранить сессию</button>
+          <button id="focus-session" disabled>Показать окно входа</button>
+          <button class="ghost" id="cancel-session" disabled>Отменить</button>
+          <span class="hint mono" id="login-info"></span>
+        </div>
+
+        <div class="row" style="margin-top: 12px">
+          <label class="hint row" style="gap: 8px; margin: 0">
+            <input type="checkbox" id="auto-save" style="width: auto" />
+            Автосохранение сессии при закрытии окна входа
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <h2>Локальный сервер MARK</h2>
+            <p>Если MARK ещё не запущен, поднимите его прямо отсюда — сервер отдаёт и API, и интерфейс.</p>
+            <div class="row">
+              <button id="start-server">Запустить сервер</button>
+              <button class="ghost" id="check-api">Проверить API</button>
+            </div>
+          </div>
+          <div class="kv">
+            <div><span>Версия оболочки</span><b id="desktop-version">—</b></div>
+            <div><span>Electron</span><b id="electron-version">—</b></div>
+            <div><span>Платформа</span><b id="platform">—</b></div>
+            <div><span>Локальный сервер</span><b id="server-state">—</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Настройки подключения</h2>
+        <p>Адрес API MARK (локальный сервер или удалённый хост агентства).</p>
+        <div class="row">
+          <input id="api-input" placeholder="http://127.0.0.1:8787" />
+          <input id="app-input" placeholder="адрес интерфейса (по умолчанию — адрес API)" />
+          <button id="save-settings">Сохранить</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row between" style="margin-bottom: 8px">
+          <h2 style="margin: 0">Журнал</h2>
+          <button class="ghost" id="clear-log">Очистить</button>
+        </div>
+        <pre class="log" id="log"></pre>
+      </div>
+    </main>
+
+    <script>
+      const bridge = window.mark;
+      const el = (id) => document.getElementById(id);
+      const logBox = el('log');
+      let loginState = { active: false };
+
+      function appendLog(line) {
+        logBox.textContent += `${line}\n`;
+        logBox.scrollTop = logBox.scrollHeight;
+      }
+
+      function setPill(node, text, tone) {
+        node.className = `pill${tone ? ` ${tone}` : ''}`;
+        node.innerHTML = `<span class="dot"></span> ${text}`;
+      }
+
+      async function refreshInfo() {
+        const info = await bridge.app.info();
+        el('api-url').textContent = info.api;
+        el('app-url').textContent = info.app;
+        el('api-input').value = info.settings.apiUrl;
+        el('app-input').value = info.settings.appUrl || '';
+        el('desktop-version').textContent = info.version;
+        el('electron-version').textContent = info.electron;
+        el('platform').textContent = info.platform;
+        const server = await bridge.server.status();
+        setPill(el('server-pill'), server.running ? 'Сервер: работает' : 'Сервер: остановлен', server.running ? 'ok' : '');
+        el('server-state').textContent = server.running ? `работает (pid ${server.pid})` : 'остановлен';
+      }
+
+      async function checkHealth() {
+        setPill(el('api-pill'), 'API: проверяю…', 'warn');
+        const result = await bridge.app.health();
+        if (result.ok) {
+          setPill(el('api-pill'), `API: доступен${result.version ? ` ${result.version}` : ''}`, 'ok');
+        } else {
+          setPill(el('api-pill'), 'API: не отвечает', 'bad');
+          appendLog(`API недоступен: ${result.error ?? result.status}`);
+        }
+      }
+
+      function paintLogin(state) {
+        loginState = state;
+        if (!state.active) {
+          setPill(el('login-pill'), 'Окно не открыто', '');
+          el('login-info').textContent = '';
+        } else {
+          setPill(el('login-pill'), `Открыт: ${state.serviceName} · cookies: ${state.cookies}`, state.cookies ? 'ok' : 'warn');
+          el('login-info').textContent = `${state.url} · ${state.partition}`;
+        }
+        el('save-session').disabled = !state.active;
+        el('focus-session').disabled = !state.active;
+        el('cancel-session').disabled = !state.active;
+      }
+
+      el('open-mark').addEventListener('click', () => bridge.app.open());
+      el('check-api').addEventListener('click', () => checkHealth());
+      el('start-server').addEventListener('click', async () => {
+        appendLog('Запускаю локальный сервер…');
+        const result = await bridge.server.start();
+        appendLog(result.already ? 'Сервер уже запущен' : `Сервер запущен (pid ${result.pid})`);
+        setTimeout(() => {
+          void checkHealth();
+          void refreshInfo();
+        }, 1500);
+      });
+      el('save-session').addEventListener('click', async () => {
+        appendLog('Сохраняю cookies в MARK…');
+        const result = await bridge.login.save();
+        appendLog(result.ok ? `Сохранено cookies: ${result.cookies}` : `Ошибка: ${result.error}`);
+        if (result.ok) await refreshInfo();
+      });
+      el('focus-session').addEventListener('click', () => bridge.login.focus());
+      el('cancel-session').addEventListener('click', async () => {
+        const result = await bridge.login.cancel();
+        if (result.ok) appendLog('Окно входа закрыто без сохранения');
+      });
+      el('save-settings').addEventListener('click', async () => {
+        const apiUrl = el('api-input').value.trim() || 'http://127.0.0.1:8787';
+        const appUrl = el('app-input').value.trim();
+        await bridge.app.saveSettings({ apiUrl, appUrl });
+        appendLog(`Настройки сохранены: ${apiUrl}`);
+        await refreshInfo();
+        void checkHealth();
+      });
+      el('clear-log').addEventListener('click', () => {
+        logBox.textContent = '';
+      });
+
+      bridge.login.onUpdate((state) => {
+        paintLogin(state);
+        if (state.active) appendLog(`Окно входа: ${state.serviceName} (cookies: ${state.cookies})`);
+      });
+      bridge.onLog((line) => appendLog(line));
+
+      el('auto-save').addEventListener('change', (event) => {
+        sessionStorage.setItem('mark.autoSave', event.target.checked ? '1' : '');
+      });
+      el('auto-save').checked = sessionStorage.getItem('mark.autoSave') === '1';
+
+      // Автосохранение: раз в 3 секунды проверяем, есть ли cookies и включён ли тумблер.
+      setInterval(async () => {
+        if (sessionStorage.getItem('mark.autoSave') !== '1') return;
+        const state = await bridge.login.status();
+        if (state.active && state.cookies > 0) {
+          const result = await bridge.login.save();
+          if (result.ok) {
+            appendLog(`Автосохранение: cookies ${result.cookies} отправлены в MARK`);
+            el('auto-save').checked = false;
+            sessionStorage.removeItem('mark.autoSave');
+          }
+        }
+      }, 3000);
+
+      (async () => {
+        await refreshInfo();
+        void checkHealth();
+        paintLogin(await bridge.login.status());
+      })();
+    </script>
+  </body>
+</html>

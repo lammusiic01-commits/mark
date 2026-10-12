@@ -1,0 +1,46 @@
+# deps
+node_modules/
+.pnp/
+.pnp.js
+
+# build output
+dist/
+build/
+out/
+release/
+*.tsbuildinfo
+
+# runtime data & secrets (НЕ коммитим!)
+.data/
+*.sqlite
+*.sqlite-journal
+.env
+.env.local
+.env.*.local
+secrets/
+*.pem
+*.key
+vault.key
+cookies/
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# test artifacts
+coverage/
+.nyc_output/
+apps/server/tests/tmp/
+tmp/
+artifacts/
+*.zip
