@@ -1,0 +1,2845 @@
+🎨 AI Маркетолог — Премиум Mini App
+Понял тебя полностью. Делаем премиум-продукт в стиле ChatGPT/Apple: чёрный фон, стеклянные кнопки, плавные анимации, скрипт-ядро на Python, AI только как советник. Поехали.
+
+🎯 Ключевая философия
+Принцип	Реализация
+Скрипт — главный	Python-движок делает всё: анализ, настройку, оптимизацию
+AI — советник	OpenRouter (бесплатные модели) только для анализа и рекомендаций
+Премиум UX	Чёрный фон, SF Pro шрифт, glassmorphism, 60fps анимации
+Полный онбординг	Пошаговая инструкция где взять каждый API-ключ
+Работает в РФ	Все запросы к Telegram через твой прокси-воркер
+СБП оплата	QR + ссылки СБП для пополнения баланса
+📁 Обновлённая структура
+text
+
+ai_marketer/
+├── bot/                        # Telegram-бот (минимальный, только запуск WebApp)
+│   ├── main.py
+│   ├── proxy_session.py        # Прокси для TG API
+│   └── handlers/
+│       ├── start.py
+│       └── payment.py          # СБП
+├── core/
+│   ├── config.py
+│   ├── database.py
+│   ├── models.py
+│   └── security.py             # Шифрование
+├── engine/                     # ⭐ ЯДРО — работает БЕЗ AI
+│   ├── __init__.py
+│   ├── market_analyzer.py      # Анализ ниши (скрипт)
+│   ├── seo_analyzer.py         # SEO-анализ (скрипт)
+│   ├── geo_analyzer.py         # GEO-анализ (скрипт)
+│   ├── bot_detector.py         # Детектор ботов (скрипт)
+│   ├── bid_optimizer.py        # Оптимизация ставок (скрипт)
+│   ├── budget_allocator.py     # Распределение бюджета (скрипт)
+│   ├── hypothesis_engine.py    # Генератор гипотез (скрипт + статистика)
+│   └── campaign_manager.py     # Управление кампаниями (скрипт)
+├── ai/                         # AI как советник
+│   ├── openrouter_client.py    # Бесплатные модели через OpenRouter
+│   └── advisor.py              # Советы на основе данных скрипта
+├── services/                   # API интеграции
+│   ├── yandex_direct.py
+│   ├── yandex_metrika.py
+│   └── hosting.py
+├── payments/                   # СБП
+│   ├── sbp_qr.py
+│   └── balance.py
+├── api/                        # FastAPI для WebApp
+│   ├── server.py
+│   ├── auth.py                 # Валидация Telegram initData
+│   └── routes/
+│       ├── onboarding.py
+│       ├── services.py
+│       ├── dashboard.py
+│       ├── campaigns.py
+│       ├── reports.py
+│       └── payments.py
+├── webapp/                     # ⭐ Premium Mini App (Vite + Vue 3)
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── package.json
+│   └── src/
+│       ├── main.js
+│       ├── App.vue
+│       ├── router.js
+│       ├── store/
+│       │   └── index.js
+│       ├── styles/
+│       │   ├── main.css
+│       │   ├── variables.css
+│       │   └── animations.css
+│       ├── composables/
+│       │   ├── useTelegram.js
+│       │   ├── useHaptics.js
+│       │   └── useApi.js
+│       ├── components/
+│       │   ├── GlassCard.vue
+│       │   ├── GlassButton.vue
+│       │   ├── BottomSheet.vue
+│       │   ├── GradientOrb.vue
+│       │   ├── MetricCard.vue
+│       │   ├── Chart.vue
+│       │   └── Loader.vue
+│       └── pages/
+│           ├── Onboarding.vue    # ⭐ Пошаговая инструкция
+│           ├── Dashboard.vue
+│           ├── Connect.vue       # ⭐ Подключение сервисов + where to get keys
+│           ├── Campaigns.vue
+│           ├── BotShield.vue
+│           ├── Hypotheses.vue
+│           ├── Balance.vue       # ⭐ СБП пополнение
+│           └── Settings.vue
+├── .env.example
+├── docker-compose.yml
+└── requirements.txt
+1️⃣ Прокси для Telegram (работа из РФ)
+Python
+
+# bot/proxy_session.py
+"""
+Кастомная сессия aiogram, которая гоняет все запросы к Telegram Bot API
+через твой Cloudflare Worker-прокси.
+"""
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import TelegramAPIServer
+
+PROXY_BASE = "https://tg-proxy.lammusiic01.workers.dev"
+
+
+def build_proxy_session() -> AiohttpSession:
+    """
+    Пересылаем запросы к api.telegram.org через воркер.
+    Формат вызова у Bot API:
+      https://api.telegram.org/bot<token>/<method>
+      https://api.telegram.org/file/bot<token>/<path>
+    aiogram позволяет подменить базовые URL через TelegramAPIServer.
+    """
+    api_server = TelegramAPIServer(
+        base=f"{PROXY_BASE}/bot{{token}}/{{method}}",
+        file=f"{PROXY_BASE}/file/bot{{token}}/{{path}}",
+    )
+    return AiohttpSession(api=api_server)
+⚠️ Важно: твой Cloudflare Worker должен принимать путь после / и форвардить его на https://api.telegram.org/... с теми же методом, телом и заголовками. Если воркер уже так работает — всё заведётся без изменений.
+
+2️⃣ Главный файл бота (минимум логики, только запуск WebApp)
+Python
+
+# bot/main.py
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+
+from core.config import settings
+from core.database import init_db
+from bot.proxy_session import build_proxy_session
+from bot.handlers import start, payment
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
+async def main():
+    await init_db()
+
+    bot = Bot(
+        token=settings.BOT_TOKEN,
+        session=build_proxy_session(),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    dp = Dispatcher()
+    dp.include_router(start.router)
+    dp.include_router(payment.router)
+
+    me = await bot.get_me()
+    logger.info(f"🚀 Бот @{me.username} запущен через прокси")
+
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+Python
+
+# bot/handlers/start.py
+from aiogram import Router
+from aiogram.filters import CommandStart
+from aiogram.types import (
+    Message, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+)
+from core.config import settings
+
+router = Router()
+
+
+@router.message(CommandStart())
+async def cmd_start(message: Message):
+    kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(
+            text="🚀 Открыть AI Маркетолог",
+            web_app=WebAppInfo(url=settings.WEBAPP_URL),
+        )
+    ]])
+
+    await message.answer(
+        "<b>AI Маркетолог</b>\n"
+        "<i>Умное управление рекламой</i>\n\n"
+        "Нажми кнопку ниже, чтобы открыть приложение 👇",
+        reply_markup=kb,
+    )
+3️⃣ Движок (скрипт делает всю работу, AI только советует)
+3.1 Детектор ботов (чистый скрипт, без AI)
+Python
+
+# engine/bot_detector.py
+"""
+Детектор бот-трафика на чистой статистике.
+НЕ использует AI — только математика и правила.
+"""
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Optional
+
+
+@dataclass
+class BotPattern:
+    code: str
+    severity: str          # low / medium / high / critical
+    title: str
+    description: str
+    confidence: float      # 0.0 - 1.0
+    evidence: dict = field(default_factory=dict)
+
+
+@dataclass
+class BotReport:
+    period_from: str
+    period_to: str
+    total_clicks: int
+    total_cost: float
+    bot_clicks_estimate: int
+    bot_cost_estimate: float
+    bot_percentage: float
+    patterns: list[BotPattern]
+    actions: list[dict]     # Готовые действия для исполнения скриптом
+
+
+class BotDetector:
+    # Пороги подобраны на основе индустриальных данных
+    THRESHOLDS = {
+        "min_session_sec": 5,
+        "critical_session_sec": 2,
+        "max_bounce_rate": 90,
+        "critical_bounce_rate": 98,
+        "min_pages_per_visit": 1.2,
+        "night_hours_start": 1,
+        "night_hours_end": 6,
+        "max_night_traffic_ratio": 0.25,
+        "max_single_city_ratio": 0.35,
+        "robot_pct_warning": 10,
+        "robot_pct_critical": 25,
+    }
+
+    def analyze(
+        self,
+        metrika_robot_stats: dict,
+        metrika_suspicious: dict,
+        metrika_geo: dict,
+        metrika_hourly: dict,
+        direct_stats: list[dict],
+        period_from: str,
+        period_to: str,
+    ) -> BotReport:
+        patterns: list[BotPattern] = []
+        actions: list[dict] = []
+
+        total_clicks, total_cost = self._sum_direct_stats(direct_stats)
+
+        # ─── 1. Процент роботов по Метрике ─────────────────
+        robot_pct = self._extract_robot_pct(metrika_robot_stats)
+        if robot_pct >= self.THRESHOLDS["robot_pct_critical"]:
+            patterns.append(BotPattern(
+                code="high_robot_pct",
+                severity="critical",
+                title="Критический уровень роботов",
+                description=f"Метрика определяет {robot_pct:.1f}% трафика как роботов",
+                confidence=0.95,
+                evidence={"robot_pct": robot_pct},
+            ))
+        elif robot_pct >= self.THRESHOLDS["robot_pct_warning"]:
+            patterns.append(BotPattern(
+                code="elevated_robot_pct",
+                severity="high",
+                title="Повышенный уровень роботов",
+                description=f"{robot_pct:.1f}% трафика — роботы",
+                confidence=0.85,
+                evidence={"robot_pct": robot_pct},
+            ))
+
+        # ─── 2. Короткие сессии + высокий bounce ────────────
+        short = self._count_short_sessions(metrika_suspicious)
+        if short["ratio"] > 0.3:
+            patterns.append(BotPattern(
+                code="short_sessions",
+                severity="high" if short["ratio"] > 0.5 else "medium",
+                title="Массовые короткие сессии",
+                description=(
+                    f"{short['ratio']*100:.1f}% визитов короче "
+                    f"{self.THRESHOLDS['min_session_sec']} сек "
+                    f"с отказом > {self.THRESHOLDS['max_bounce_rate']}%"
+                ),
+                confidence=0.9,
+                evidence=short,
+            ))
+            actions.append({
+                "type": "raise_min_session_filter",
+                "params": {"min_sec": 5},
+                "reason": "Отсечь явно ботовый трафик по длительности",
+            })
+
+        # ─── 3. Географические аномалии ────────────────────
+        geo_anomalies = self._detect_geo_anomalies(metrika_geo)
+        for anom in geo_anomalies[:5]:
+            patterns.append(BotPattern(
+                code="geo_anomaly",
+                severity="medium",
+                title=f"Аномалия: {anom['city']}",
+                description=(
+                    f"{anom['visits']} визитов, "
+                    f"отказы {anom['bounce_rate']:.0f}%, "
+                    f"сессия {anom['avg_duration']:.1f} сек"
+                ),
+                confidence=0.75,
+                evidence=anom,
+            ))
+        if geo_anomalies:
+            actions.append({
+                "type": "exclude_regions",
+                "params": {"cities": [a["city"] for a in geo_anomalies[:3]]},
+                "reason": "Исключить регионы с бот-фермами",
+            })
+
+        # ─── 4. Ночной трафик ──────────────────────────────
+        night_ratio = self._calc_night_ratio(metrika_hourly)
+        if night_ratio > self.THRESHOLDS["max_night_traffic_ratio"]:
+            patterns.append(BotPattern(
+                code="night_traffic_spike",
+                severity="medium",
+                title="Аномальный ночной трафик",
+                description=(
+                    f"{night_ratio*100:.1f}% трафика идёт ночью "
+                    f"(1:00–6:00), это характерно для ботов"
+                ),
+                confidence=0.7,
+                evidence={"night_ratio": night_ratio},
+            ))
+            actions.append({
+                "type": "disable_night_schedule",
+                "params": {"from_hour": 1, "to_hour": 6},
+                "reason": "Отключить показы в часы бот-активности",
+            })
+
+        # ─── Итоговая оценка бот-доли ──────────────────────
+        bot_ratio = self._compute_bot_ratio(robot_pct, short, night_ratio)
+        bot_clicks = int(total_clicks * bot_ratio)
+        bot_cost = round(total_cost * bot_ratio, 2)
+
+        return BotReport(
+            period_from=period_from,
+            period_to=period_to,
+            total_clicks=total_clicks,
+            total_cost=total_cost,
+            bot_clicks_estimate=bot_clicks,
+            bot_cost_estimate=bot_cost,
+            bot_percentage=round(bot_ratio * 100, 2),
+            patterns=patterns,
+            actions=actions,
+        )
+
+    # ─── Вспомогательные методы ─────────────────────────────
+    def _sum_direct_stats(self, stats: list[dict]) -> tuple[int, float]:
+        clicks, cost = 0, 0.0
+        for row in stats:
+            try:
+                clicks += int(row.get("Clicks", 0))
+                cost += float(row.get("Cost", 0)) / 1_000_000
+            except (TypeError, ValueError):
+                pass
+        return clicks, round(cost, 2)
+
+    def _extract_robot_pct(self, data: dict) -> float:
+        try:
+            for row in data.get("data", []):
+                dims = row.get("dimensions", [])
+                if dims and dims[0].get("name") in ("Yes", "Да"):
+                    return float(row["metrics"][1]) if len(row["metrics"]) > 1 else 0.0
+        except Exception:
+            pass
+        return 0.0
+
+    def _count_short_sessions(self, data: dict) -> dict:
+        total, suspicious = 0, 0
+        for row in data.get("data", []):
+            try:
+                m = row.get("metrics", [0, 0, 0])
+                visits = int(m[0]); bounce = float(m[1]); dur = float(m[2])
+                total += visits
+                if (bounce > self.THRESHOLDS["max_bounce_rate"]
+                        and dur < self.THRESHOLDS["min_session_sec"]):
+                    suspicious += visits
+            except Exception:
+                continue
+        return {
+            "total": total,
+            "suspicious": suspicious,
+            "ratio": (suspicious / total) if total else 0.0,
+        }
+
+    def _detect_geo_anomalies(self, data: dict) -> list[dict]:
+        out = []
+        for row in data.get("data", []):
+            try:
+                city = row["dimensions"][0].get("name", "—")
+                m = row.get("metrics", [0, 0, 0])
+                visits = int(m[0]); bounce = float(m[1]); dur = float(m[2])
+                if visits >= 20 and bounce >= 90 and dur < 5:
+                    out.append({
+                        "city": city,
+                        "visits": visits,
+                        "bounce_rate": bounce,
+                        "avg_duration": dur,
+                    })
+            except Exception:
+                continue
+        return sorted(out, key=lambda x: x["visits"], reverse=True)
+
+    def _calc_night_ratio(self, hourly: dict) -> float:
+        total, night = 0, 0
+        start = self.THRESHOLDS["night_hours_start"]
+        end = self.THRESHOLDS["night_hours_end"]
+        for row in hourly.get("data", []):
+            try:
+                hour = int(row["dimensions"][0].get("name", -1))
+                visits = int(row["metrics"][0])
+                total += visits
+                if start <= hour <= end:
+                    night += visits
+            except Exception:
+                continue
+        return (night / total) if total else 0.0
+
+    def _compute_bot_ratio(self, robot_pct: float, short: dict, night: float) -> float:
+        """
+        Взвешенная оценка: берём максимум по трём независимым сигналам,
+        но с ограничением сверху, чтобы не паниковать.
+        """
+        signals = [
+            robot_pct / 100,
+            short["ratio"] * 0.8,
+            max(night - 0.15, 0) * 1.2,
+        ]
+        return min(max(signals), 0.85)
+3.2 Оптимизатор ставок (скрипт)
+Python
+
+# engine/bid_optimizer.py
+"""
+Скриптовый оптимизатор ставок. Работает по правилам:
+- Снижает ставки на keyword'ах с высоким CPA
+- Повышает на тех, что приносят конверсии дешевле целевого CPA
+- Не трогает кампании без достаточной статистики
+"""
+from dataclasses import dataclass
+
+
+@dataclass
+class BidAction:
+    keyword_id: int
+    keyword: str
+    old_bid: float
+    new_bid: float
+    reason: str
+    confidence: float
+
+
+class BidOptimizer:
+    MIN_CLICKS_FOR_DECISION = 20   # Минимум кликов для статзначимости
+    MAX_BID_INCREASE_PCT = 25      # Не повышать больше чем на 25% за раз
+    MAX_BID_DECREASE_PCT = 40      # Не снижать больше чем на 40%
+
+    def optimize(
+        self,
+        keywords_stats: list[dict],
+        target_cpa: float,
+    ) -> list[BidAction]:
+        actions: list[BidAction] = []
+
+        for kw in keywords_stats:
+            clicks = int(kw.get("clicks", 0))
+            if clicks < self.MIN_CLICKS_FOR_DECISION:
+                continue
+
+            cost = float(kw.get("cost", 0))
+            conversions = int(kw.get("conversions", 0))
+            current_bid = float(kw.get("bid", 0))
+
+            if current_bid <= 0:
+                continue
+
+            # Нет конверсий — агрессивно снижаем
+            if conversions == 0:
+                new_bid = current_bid * (1 - self.MAX_BID_DECREASE_PCT / 100)
+                actions.append(BidAction(
+                    keyword_id=kw["id"],
+                    keyword=kw.get("keyword", ""),
+                    old_bid=current_bid,
+                    new_bid=round(new_bid, 2),
+                    reason=f"{clicks} кликов, 0 конверсий — снижаем на {self.MAX_BID_DECREASE_PCT}%",
+                    confidence=0.9,
+                ))
+                continue
+
+            actual_cpa = cost / conversions
+
+            if actual_cpa > target_cpa * 1.3:
+                # CPA сильно выше целевого — снижаем
+                reduction = min(
+                    (actual_cpa - target_cpa) / actual_cpa,
+                    self.MAX_BID_DECREASE_PCT / 100
+                )
+                new_bid = current_bid * (1 - reduction)
+                actions.append(BidAction(
+                    keyword_id=kw["id"],
+                    keyword=kw.get("keyword", ""),
+                    old_bid=current_bid,
+                    new_bid=round(new_bid, 2),
+                    reason=f"CPA {actual_cpa:.0f}₽ выше целевого {target_cpa:.0f}₽ на {(actual_cpa/target_cpa-1)*100:.0f}%",
+                    confidence=0.85,
+                ))
+            elif actual_cpa < target_cpa * 0.7:
+                # CPA заметно ниже — есть запас для роста
+                increase = min(
+                    (target_cpa - actual_cpa) / target_cpa * 0.5,
+                    self.MAX_BID_INCREASE_PCT / 100
+                )
+                new_bid = current_bid * (1 + increase)
+                actions.append(BidAction(
+                    keyword_id=kw["id"],
+                    keyword=kw.get("keyword", ""),
+                    old_bid=current_bid,
+                    new_bid=round(new_bid, 2),
+                    reason=f"CPA {actual_cpa:.0f}₽ ниже цели — есть запас для масштабирования",
+                    confidence=0.75,
+                ))
+
+        return actions
+3.3 Генератор гипотез (скрипт + статистика)
+Python
+
+# engine/hypothesis_engine.py
+"""
+Генератор гипотез на основе правил и статистики.
+AI вызывается ОПЦИОНАЛЬНО для улучшения формулировок.
+"""
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass
+class Hypothesis:
+    code: str
+    type: str
+    title: str
+    description: str
+    expected_impact_pct: float
+    required_budget: float
+    duration_days: int
+    priority: int
+    success_metric: str
+    rollback_rule: str
+
+
+class HypothesisEngine:
+    def generate(
+        self,
+        campaigns: list[dict],
+        bot_report: dict,
+        kpi: dict,
+    ) -> list[Hypothesis]:
+        hypotheses: list[Hypothesis] = []
+
+        # ─── Гипотеза: минус-слова по бот-паттернам ────────
+        if bot_report.get("bot_percentage", 0) > 15:
+            hypotheses.append(Hypothesis(
+                code="H001_negative_keywords",
+                type="negative_keywords",
+                title="Добавление минус-слов по бот-паттернам",
+                description=(
+                    "Собрать стоп-слова из поисковых запросов с коротким "
+                    "временем на сайте и добавить как минус-слова"
+                ),
+                expected_impact_pct=15.0,
+                required_budget=0,
+                duration_days=7,
+                priority=95,
+                success_metric="Снижение bot_percentage на 30%+",
+                rollback_rule="Если CR упадёт более чем на 10% — откат",
+            ))
+
+        # ─── Гипотеза: временной таргетинг ─────────────────
+        if kpi.get("conversion_hours_concentrated", False):
+            hypotheses.append(Hypothesis(
+                code="H002_time_targeting",
+                type="schedule_test",
+                title="Концентрация показов в конверсионные часы",
+                description=(
+                    "Повысить ставки на +30% в часы с макс. CR, "
+                    "снизить на -40% в часы с минимальной конверсией"
+                ),
+                expected_impact_pct=20.0,
+                required_budget=kpi.get("daily_budget", 0) * 7,
+                duration_days=7,
+                priority=85,
+                success_metric="Снижение CPA на 15%+",
+                rollback_rule="Если impressions упадут > 40% — откат",
+            ))
+
+        # ─── Гипотеза: тест автостратегии ──────────────────
+        for camp in campaigns:
+            if (camp.get("strategy") == "MANUAL"
+                    and camp.get("conversions_30d", 0) >= 10):
+                hypotheses.append(Hypothesis(
+                    code=f"H003_auto_strategy_{camp['id']}",
+                    type="bid_test",
+                    title=f"Автостратегия для «{camp['name']}»",
+                    description=(
+                        "Перевести на автоматическую стратегию "
+                        "«Оптимизация конверсий» с целевым CPA"
+                    ),
+                    expected_impact_pct=18.0,
+                    required_budget=camp.get("daily_budget", 0) * 14,
+                    duration_days=14,
+                    priority=80,
+                    success_metric="CPA в пределах целевого ±10%",
+                    rollback_rule="Нет конверсий 5 дней — вернуть ручную",
+                ))
+
+        # ─── Гипотеза: ретаргетинг ─────────────────────────
+        if not kpi.get("has_retargeting", False):
+            hypotheses.append(Hypothesis(
+                code="H004_retargeting",
+                type="audience_test",
+                title="Запуск ретаргетинга на отказников",
+                description=(
+                    "Создать сегмент пользователей, которые были на сайте >30 сек, "
+                    "но не совершили целевое действие, и показывать им объявления"
+                ),
+                expected_impact_pct=25.0,
+                required_budget=5000,
+                duration_days=14,
+                priority=75,
+                success_metric="CPA ретаргетинга ниже основной кампании на 20%+",
+                rollback_rule="CTR < 0.5% — откат",
+            ))
+
+        return sorted(hypotheses, key=lambda h: h.priority, reverse=True)
+3.4 SEO/GEO анализ (скрипт)
+Python
+
+# engine/seo_analyzer.py
+"""
+Базовый SEO-анализ сайта без AI.
+Проверяет: мета-теги, скорость загрузки, mobile, h1-h6, robots.txt
+"""
+import aiohttp
+import re
+from dataclasses import dataclass
+
+
+@dataclass
+class SEOIssue:
+    code: str
+    severity: str
+    title: str
+    description: str
+    recommendation: str
+
+
+@dataclass
+class SEOReport:
+    url: str
+    score: int                 # 0-100
+    issues: list[SEOIssue]
+    meta: dict
+
+
+class SEOAnalyzer:
+    async def analyze(self, url: str) -> SEOReport:
+        issues: list[SEOIssue] = []
+        meta: dict = {}
+
+        async with aiohttp.ClientSession() as s:
+            try:
+                async with s.get(url, timeout=15) as resp:
+                    html = await resp.text()
+                    load_time = resp.headers.get("X-Response-Time")
+            except Exception as e:
+                return SEOReport(url=url, score=0, issues=[SEOIssue(
+                    code="unreachable",
+                    severity="critical",
+                    title="Сайт недоступен",
+                    description=str(e),
+                    recommendation="Проверьте работу хостинга",
+                )], meta={})
+
+        # Title
+        title_match = re.search(r"<title>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+        title = title_match.group(1).strip() if title_match else ""
+        meta["title"] = title
+        if not title:
+            issues.append(SEOIssue(
+                "no_title", "critical", "Отсутствует <title>",
+                "На странице нет тега title",
+                "Добавьте уникальный title длиной 50-60 символов",
+            ))
+        elif len(title) > 70:
+            issues.append(SEOIssue(
+                "long_title", "medium", "Длинный title",
+                f"Длина title: {len(title)} символов",
+                "Сократите до 50-60 символов",
+            ))
+
+        # Description
+        desc_match = re.search(
+            r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']',
+            html, re.IGNORECASE,
+        )
+        description = desc_match.group(1) if desc_match else ""
+        meta["description"] = description
+        if not description:
+            issues.append(SEOIssue(
+                "no_description", "high", "Нет meta description",
+                "Отсутствует описание страницы",
+                "Добавьте description длиной 140-160 символов",
+            ))
+
+        # H1
+        h1_count = len(re.findall(r"<h1[\s>]", html, re.IGNORECASE))
+        meta["h1_count"] = h1_count
+        if h1_count == 0:
+            issues.append(SEOIssue(
+                "no_h1", "high", "Нет H1-заголовка",
+                "На странице отсутствует главный заголовок",
+                "Добавьте один заголовок H1 с ключевым запросом",
+            ))
+        elif h1_count > 1:
+            issues.append(SEOIssue(
+                "multiple_h1", "medium", f"Множественные H1 ({h1_count})",
+                "На странице несколько H1-заголовков",
+                "Оставьте только один H1",
+            ))
+
+        # Viewport (мобильная версия)
+        if 'name="viewport"' not in html.lower():
+            issues.append(SEOIssue(
+                "no_viewport", "high", "Нет mobile viewport",
+                "Сайт не адаптирован для мобильных",
+                "Добавьте <meta name='viewport' content='width=device-width, initial-scale=1'>",
+            ))
+
+        # Open Graph
+        if 'property="og:' not in html.lower():
+            issues.append(SEOIssue(
+                "no_og", "low", "Нет Open Graph",
+                "Отсутствуют OG-теги для соцсетей",
+                "Добавьте og:title, og:description, og:image",
+            ))
+
+        # Расчёт score
+        severity_weight = {"critical": 25, "high": 15, "medium": 7, "low": 3}
+        penalty = sum(severity_weight.get(i.severity, 0) for i in issues)
+        score = max(0, 100 - penalty)
+
+        return SEOReport(url=url, score=score, issues=issues, meta=meta)
+4️⃣ AI как советник (OpenRouter, бесплатные модели)
+Python
+
+# ai/openrouter_client.py
+"""
+Клиент OpenRouter с бесплатными моделями.
+Используется только для рекомендаций, НЕ для выполнения действий.
+"""
+import aiohttp
+from core.config import settings
+
+
+# Бесплатные модели OpenRouter (на момент написания)
+FREE_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "google/gemini-2.0-flash-exp:free",
+    "deepseek/deepseek-chat-v3.1:free",
+    "qwen/qwen-2.5-72b-instruct:free",
+]
+
+
+class OpenRouterClient:
+    BASE = "https://openrouter.ai/api/v1/chat/completions"
+
+    def __init__(self):
+        self.key = settings.OPENROUTER_API_KEY
+        self.model = settings.AI_MODEL or FREE_MODELS[0]
+
+    async def ask(
+        self,
+        system: str,
+        user: str,
+        temperature: float = 0.3,
+        max_tokens: int = 1500,
+    ) -> str:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.key}",
+            "HTTP-Referer": settings.WEBAPP_URL,
+            "X-Title": "AI Marketer",
+            "Content-Type": "application/json",
+        }
+
+        # Fallback по моделям — если первая отвалилась, пробуем следующую
+        models_queue = [self.model] + [m for m in FREE_MODELS if m != self.model]
+
+        async with aiohttp.ClientSession() as session:
+            for m in models_queue:
+                payload["model"] = m
+                try:
+                    async with session.post(
+                        self.BASE, json=payload, headers=headers, timeout=60
+                    ) as resp:
+                        if resp.status != 200:
+                            continue
+                        data = await resp.json()
+                        return data["choices"][0]["message"]["content"]
+                except Exception:
+                    continue
+
+        return "⚠️ AI-советник временно недоступен"
+Python
+
+# ai/advisor.py
+"""
+AI-советник. Получает ГОТОВЫЕ данные от скрипт-движка
+и даёт человеко-читаемые рекомендации.
+"""
+import json
+from ai.openrouter_client import OpenRouterClient
+
+
+SYSTEM = """Ты — опытный директор по контекстной рекламе.
+Тебе дают данные анализа (их уже посчитал скрипт).
+Твоя задача: кратко, по делу, с цифрами объяснить что происходит
+и дать 3-5 конкретных советов. Пиши на русском, с эмодзи, 
+без воды. Формат — Markdown с заголовками."""
+
+
+class AIAdvisor:
+    def __init__(self):
+        self.client = OpenRouterClient()
+
+    async def explain_bot_report(self, report: dict) -> str:
+        user = f"""Отчёт детектора ботов:
+{json.dumps(report, ensure_ascii=False, indent=2)}
+
+Объясни клиенту простыми словами:
+1. Насколько всё плохо
+2. Сколько денег теряется
+3. Что делать прямо сейчас (топ-3 действия)
+"""
+        return await self.client.ask(SYSTEM, user)
+
+    async def explain_bid_actions(self, actions: list[dict], target_cpa: float) -> str:
+        user = f"""Скрипт предлагает изменить ставки:
+Целевой CPA: {target_cpa} ₽
+Действия: {json.dumps(actions[:20], ensure_ascii=False, indent=2)}
+
+Напиши краткое резюме: что меняется и почему это логично.
+"""
+        return await self.client.ask(SYSTEM, user)
+5️⃣ СБП оплата (QR + ссылка)
+Python
+
+# payments/sbp_qr.py
+"""
+Генерация QR-кода СБП для пополнения баланса.
+Используется универсальная ссылка СБП (без привязки к конкретному банку).
+"""
+import qrcode
+from io import BytesIO
+import uuid
+from datetime import datetime, timedelta
+
+
+class SBPPayment:
+    def __init__(self, merchant_id: str, account: str):
+        self.merchant_id = merchant_id
+        self.account = account
+
+    def create_payment(
+        self,
+        amount: float,
+        user_id: int,
+        description: str = "Пополнение баланса AI Marketer",
+    ) -> dict:
+        """
+        Создаёт платёж и возвращает:
+        - payment_id (для отслеживания)
+        - sbp_url (универсальная СБП-ссылка)
+        - qr_png (QR-код в виде PNG-байтов)
+        """
+        payment_id = str(uuid.uuid4())
+
+        # Универсальная СБП-ссылка (поддерживается всеми банками РФ)
+        # Формат: https://qr.nspk.ru/<ID>?type=02&bank=<bank>&sum=<amount>&cur=RUB&crc=<crc>
+        sbp_url = (
+            f"https://qr.nspk.ru/{self.merchant_id}"
+            f"?type=02&sum={int(amount * 100)}&cur=RUB"
+            f"&purpose={description}&ref={payment_id}"
+        )
+
+        # Генерируем QR
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=2,
+        )
+        qr.add_data(sbp_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#FFFFFF", back_color="#1C1C1E")
+
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        qr_png = buf.getvalue()
+
+        return {
+            "payment_id": payment_id,
+            "amount": amount,
+            "sbp_url": sbp_url,
+            "qr_png": qr_png,
+            "expires_at": (datetime.utcnow() + timedelta(hours=1)).isoformat(),
+        }
+💡 Для реальной работы потребуется договор с банком (например, Тинькофф Касса или ЮKassa поддерживают СБП out of the box и возвращают готовый QR + webhook об оплате). Код выше — заглушка под твой будущий провайдер.
+
+6️⃣ FastAPI сервер (бэкенд для WebApp)
+Python
+
+# api/server.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from api.routes import onboarding, services, dashboard, campaigns, reports, payments
+
+app = FastAPI(title="AI Marketer API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(onboarding.router, prefix="/api/onboarding")
+app.include_router(services.router, prefix="/api/services")
+app.include_router(dashboard.router, prefix="/api/dashboard")
+app.include_router(campaigns.router, prefix="/api/campaigns")
+app.include_router(reports.router, prefix="/api/reports")
+app.include_router(payments.router, prefix="/api/payments")
+
+# Отдаём собранный Vue-WebApp
+app.mount("/", StaticFiles(directory="webapp/dist", html=True), name="webapp")
+Python
+
+# api/auth.py
+"""
+Валидация Telegram WebApp initData.
+Каждый запрос с фронта содержит initData — проверяем подпись.
+"""
+import hmac
+import hashlib
+from urllib.parse import unquote, parse_qsl
+from fastapi import Header, HTTPException
+from core.config import settings
+
+
+def verify_init_data(init_data: str) -> dict:
+    try:
+        parsed = dict(parse_qsl(unquote(init_data)))
+        received_hash = parsed.pop("hash")
+        data_check = "\n".join(
+            f"{k}={v}" for k, v in sorted(parsed.items())
+        )
+        secret = hmac.new(
+            b"WebAppData", settings.BOT_TOKEN.encode(), hashlib.sha256
+        ).digest()
+        calc_hash = hmac.new(
+            secret, data_check.encode(), hashlib.sha256
+        ).hexdigest()
+        if calc_hash != received_hash:
+            raise ValueError("bad signature")
+        return parsed
+    except Exception as e:
+        raise HTTPException(401, f"Invalid initData: {e}")
+
+
+async def tg_user(x_telegram_init_data: str = Header(...)) -> dict:
+    import json
+    data = verify_init_data(x_telegram_init_data)
+    return json.loads(data.get("user", "{}"))
+7️⃣ ⭐ Premium Mini App (Vue 3 + Vite)
+7.1 package.json
+JSON
+
+{
+  "name": "ai-marketer-webapp",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0",
+    "pinia": "^2.3.0",
+    "@vueuse/core": "^12.0.0",
+    "chart.js": "^4.4.0",
+    "vue-chartjs": "^5.3.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "@vitejs/plugin-vue": "^5.2.0"
+  }
+}
+7.2 Design System — CSS-переменные
+CSS
+
+/* webapp/src/styles/variables.css */
+:root {
+  /* ─── Цвета (чёрная премиум-тема как ChatGPT в TG) ─── */
+  --bg-primary: #000000;
+  --bg-secondary: #0A0A0A;
+  --bg-tertiary: #141414;
+  --bg-elevated: #1C1C1E;
+
+  --surface-glass: rgba(28, 28, 30, 0.72);
+  --surface-glass-strong: rgba(28, 28, 30, 0.92);
+  --surface-overlay: rgba(255, 255, 255, 0.06);
+  --surface-overlay-hover: rgba(255, 255, 255, 0.10);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(235, 235, 245, 0.60);
+  --text-tertiary: rgba(235, 235, 245, 0.30);
+
+  --accent-blue: #0A84FF;
+  --accent-purple: #BF5AF2;
+  --accent-green: #30D158;
+  --accent-orange: #FF9F0A;
+  --accent-red: #FF453A;
+
+  /* Градиент для «орба» как у ChatGPT */
+  --gradient-orb: radial-gradient(
+    circle at 30% 30%,
+    #E8F0FF 0%,
+    #AEC5FF 35%,
+    #6B8EFF 70%,
+    #3A5BCC 100%
+  );
+
+  --gradient-brand: linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%);
+
+  /* ─── Типографика (SF Pro / Inter fallback) ─── */
+  --font-display:
+    -apple-system, 'SF Pro Display', 'Inter', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  --font-text:
+    -apple-system, 'SF Pro Text', 'Inter', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  --font-mono:
+    'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --fs-caption: 11px;
+  --fs-footnote: 13px;
+  --fs-body: 15px;
+  --fs-headline: 17px;
+  --fs-title-3: 20px;
+  --fs-title-2: 22px;
+  --fs-title-1: 28px;
+  --fs-large: 34px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ─── Spacing (кратно 4) ─── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ─── Радиусы ─── */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* ─── Анимации (iOS-like) ─── */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.5, 1.8, 0.5, 0.8);
+  --duration-fast: 180ms;
+  --duration-normal: 280ms;
+  --duration-slow: 420ms;
+
+  /* ─── Тени ─── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 40px rgba(10, 132, 255, 0.3);
+}
+7.3 Главные стили
+CSS
+
+/* webapp/src/styles/main.css */
+@import './variables.css';
+@import './animations.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-text);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+/* Включаем выделение для input/textarea */
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: var(--fs-large); line-height: 1.1; }
+h2 { font-size: var(--fs-title-1); line-height: 1.15; }
+h3 { font-size: var(--fs-title-2); line-height: 1.2; }
+h4 { font-size: var(--fs-title-3); line-height: 1.25; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+/* Scrollbar — скрыт, но работает */
+::-webkit-scrollbar { width: 0; display: none; }
+
+/* Safe area для iPhone */
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+7.4 Анимации
+CSS
+
+/* webapp/src/styles/animations.css */
+
+/* Fade + slide-up — как у iOS модалок */
+.view-enter-active,
+.view-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-ios),
+              transform var(--duration-normal) var(--ease-ios);
+}
+.view-enter-from { opacity: 0; transform: translateY(14px); }
+.view-leave-to   { opacity: 0; transform: translateY(-8px); }
+
+/* Slide-right для push-навигации */
+.push-enter-active,
+.push-leave-active {
+  transition: transform var(--duration-normal) var(--ease-ios),
+              opacity var(--duration-normal) var(--ease-ios);
+}
+.push-enter-from { transform: translateX(100%); opacity: 0.5; }
+.push-leave-to   { transform: translateX(-30%); opacity: 0.5; }
+
+/* Pulsing orb (как у ChatGPT) */
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); filter: blur(0px); }
+  50%      { transform: scale(1.05); filter: blur(0.5px); }
+}
+
+@keyframes orb-glow {
+  0%, 100% { box-shadow: 0 0 60px rgba(174, 197, 255, 0.3); }
+  50%      { box-shadow: 0 0 100px rgba(174, 197, 255, 0.5); }
+}
+
+/* Shimmer loader */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-overlay) 0%,
+    var(--surface-overlay-hover) 50%,
+    var(--surface-overlay) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Spring bounce для кнопок */
+.press-bounce {
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+.press-bounce:active {
+  transform: scale(0.96);
+}
+7.5 Главный App.vue
+vue
+
+<!-- webapp/src/App.vue -->
+<template>
+  <div class="app">
+    <!-- Градиентный фон, который слегка движется -->
+    <div class="bg-gradient" />
+
+    <router-view v-slot="{ Component }">
+      <transition name="view" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+  </div>
+</template>
+
+<script setup>
+import { onMounted } from 'vue'
+import { useTelegram } from './composables/useTelegram'
+
+const { tg, ready, expand, setTheme } = useTelegram()
+
+onMounted(() => {
+  ready()
+  expand()
+  setTheme()
+})
+</script>
+
+<style scoped>
+.app {
+  position: relative;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.bg-gradient {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(10, 132, 255, 0.08), transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(191, 90, 242, 0.06), transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+</style>
+7.6 Composables (Telegram SDK + Haptics)
+JavaScript
+
+// webapp/src/composables/useTelegram.js
+export function useTelegram() {
+  const tg = window.Telegram?.WebApp
+
+  return {
+    tg,
+    ready: () => tg?.ready(),
+    expand: () => tg?.expand(),
+    close: () => tg?.close(),
+    user: tg?.initDataUnsafe?.user,
+    initData: tg?.initData,
+
+    setTheme: () => {
+      if (!tg) return
+      tg.setHeaderColor('#000000')
+      tg.setBackgroundColor('#000000')
+      // Включаем закрывающую анимацию с подтверждением
+      tg.enableClosingConfirmation()
+    },
+
+    showMainButton: (text, cb) => {
+      if (!tg) return
+      tg.MainButton.setText(text)
+      tg.MainButton.onClick(cb)
+      tg.MainButton.show()
+    },
+    hideMainButton: () => tg?.MainButton?.hide(),
+
+    showBackButton: (cb) => {
+      if (!tg) return
+      tg.BackButton.onClick(cb)
+      tg.BackButton.show()
+    },
+    hideBackButton: () => tg?.BackButton?.hide(),
+  }
+}
+JavaScript
+
+// webapp/src/composables/useHaptics.js
+export function useHaptics() {
+  const tg = window.Telegram?.WebApp
+  const h = tg?.HapticFeedback
+
+  return {
+    light:   () => h?.impactOccurred?.('light'),
+    medium:  () => h?.impactOccurred?.('medium'),
+    heavy:   () => h?.impactOccurred?.('heavy'),
+    rigid:   () => h?.impactOccurred?.('rigid'),
+    soft:    () => h?.impactOccurred?.('soft'),
+    success: () => h?.notificationOccurred?.('success'),
+    warning: () => h?.notificationOccurred?.('warning'),
+    error:   () => h?.notificationOccurred?.('error'),
+    select:  () => h?.selectionChanged?.(),
+  }
+}
+JavaScript
+
+// webapp/src/composables/useApi.js
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+
+export function useApi() {
+  const initData = window.Telegram?.WebApp?.initData || ''
+
+  async function request(path, options = {}) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Telegram-Init-Data': initData,
+        ...(options.headers || {}),
+      },
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || `HTTP ${res.status}`)
+    }
+    return res.json()
+  }
+
+  return {
+    get:  (p)      => request(p),
+    post: (p, b)   => request(p, { method: 'POST', body: JSON.stringify(b) }),
+    put:  (p, b)   => request(p, { method: 'PUT',  body: JSON.stringify(b) }),
+    del:  (p)      => request(p, { method: 'DELETE' }),
+  }
+}
+7.7 Переиспользуемые UI-компоненты
+vue
+
+<!-- webapp/src/components/GlassCard.vue -->
+<template>
+  <div class="glass-card" :class="{ interactive }">
+    <slot />
+  </div>
+</template>
+
+<script setup>
+defineProps({ interactive: Boolean })
+</script>
+
+<style scoped>
+.glass-card {
+  background: var(--surface-glass);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  position: relative;
+  transition: all var(--duration-normal) var(--ease-ios);
+}
+
+.glass-card.interactive {
+  cursor: pointer;
+}
+.glass-card.interactive:active {
+  transform: scale(0.98);
+  background: var(--surface-glass-strong);
+}
+</style>
+vue
+
+<!-- webapp/src/components/GlassButton.vue -->
+<template>
+  <button
+    class="g-btn"
+    :class="[`variant-${variant}`, `size-${size}`, { 'full-width': block }]"
+    :disabled="disabled || loading"
+    @click="handleClick"
+  >
+    <span v-if="loading" class="spinner" />
+    <slot v-else />
+  </button>
+</template>
+
+<script setup>
+import { useHaptics } from '../composables/useHaptics'
+
+const props = defineProps({
+  variant: { type: String, default: 'primary' }, // primary / secondary / ghost / danger
+  size:    { type: String, default: 'md' },      // sm / md / lg
+  block:   Boolean,
+  loading: Boolean,
+  disabled: Boolean,
+})
+const emit = defineEmits(['click'])
+const h = useHaptics()
+
+function handleClick(e) {
+  h.light()
+  emit('click', e)
+}
+</script>
+
+<style scoped>
+.g-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-text);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  border-radius: var(--radius-pill);
+  transition: all var(--duration-fast) var(--ease-spring);
+  position: relative;
+  overflow: hidden;
+}
+
+.g-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.g-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.size-sm { padding: 10px 16px; font-size: var(--fs-footnote); }
+.size-md { padding: 14px 22px; font-size: var(--fs-body); }
+.size-lg { padding: 18px 28px; font-size: var(--fs-headline); }
+
+.full-width { width: 100%; }
+
+/* Variants */
+.variant-primary {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+.variant-primary:active:not(:disabled) {
+  background: #D4D4D4;
+}
+
+.variant-secondary {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+}
+.variant-secondary:active:not(:disabled) {
+  background: var(--surface-overlay-hover);
+}
+
+.variant-ghost {
+  background: transparent;
+  color: var(--accent-blue);
+}
+
+.variant-danger {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+vue
+
+<!-- webapp/src/components/GradientOrb.vue -->
+<template>
+  <div class="orb-wrap" :style="{ width: `${size}px`, height: `${size}px` }">
+    <div class="orb" />
+    <div class="orb-glow" />
+  </div>
+</template>
+
+<script setup>
+defineProps({ size: { type: Number, default: 180 } })
+</script>
+
+<style scoped>
+.orb-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--gradient-orb);
+  animation: orb-breathe 4s ease-in-out infinite;
+  filter: blur(0.5px);
+}
+
+.orb-glow {
+  position: absolute;
+  inset: -20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(174, 197, 255, 0.3), transparent 60%);
+  animation: orb-glow 4s ease-in-out infinite;
+  z-index: -1;
+}
+</style>
+vue
+
+<!-- webapp/src/components/MetricCard.vue -->
+<template>
+  <GlassCard class="metric">
+    <div class="metric-head">
+      <span class="metric-icon" :style="{ background: color }">{{ icon }}</span>
+      <span class="metric-label">{{ label }}</span>
+    </div>
+    <div class="metric-value">
+      {{ value }}
+      <span v-if="unit" class="metric-unit">{{ unit }}</span>
+    </div>
+    <div v-if="change !== undefined" class="metric-change" :class="changeClass">
+      {{ change >= 0 ? '↑' : '↓' }} {{ Math.abs(change) }}%
+    </div>
+  </GlassCard>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+import GlassCard from './GlassCard.vue'
+
+const props = defineProps({
+  icon: String,
+  label: String,
+  value: [String, Number],
+  unit: String,
+  change: Number,
+  color: { type: String, default: 'rgba(10, 132, 255, 0.15)' },
+})
+
+const changeClass = computed(() => {
+  if (props.change > 0) return 'positive'
+  if (props.change < 0) return 'negative'
+  return 'neutral'
+})
+</script>
+
+<style scoped>
+.metric { padding: var(--space-4); }
+
+.metric-head {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.metric-icon {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+
+.metric-label {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+}
+
+.metric-value {
+  font-family: var(--font-display);
+  font-size: var(--fs-title-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.metric-unit {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+
+.metric-change {
+  margin-top: var(--space-2);
+  font-size: var(--fs-footnote);
+  font-weight: var(--fw-semibold);
+}
+.positive { color: var(--accent-green); }
+.negative { color: var(--accent-red); }
+.neutral  { color: var(--text-tertiary); }
+</style>
+7.8 ⭐ Онбординг — пошаговая инструкция
+vue
+
+<!-- webapp/src/pages/Onboarding.vue -->
+<template>
+  <div class="onboarding">
+    <!-- Шапка -->
+    <header class="header safe-top">
+      <button class="skip" @click="skip">Пропустить</button>
+      <div class="dots">
+        <span
+          v-for="i in steps.length"
+          :key="i"
+          class="dot"
+          :class="{ active: i - 1 === step }"
+        />
+      </div>
+      <div style="width: 60px" />
+    </header>
+
+    <!-- Контент шага -->
+    <transition name="view" mode="out-in">
+      <div :key="step" class="step-content">
+        <!-- Шаг 1: Приветствие -->
+        <section v-if="step === 0" class="welcome">
+          <GradientOrb :size="200" />
+          <h1 class="hero-title">AI Маркетолог</h1>
+          <p class="hero-subtitle">
+            Умный ассистент, который<br>
+            экономит ваш рекламный бюджет
+          </p>
+        </section>
+
+        <!-- Шаг 2: Что умеет -->
+        <section v-else-if="step === 1" class="features">
+          <h2>Что я умею</h2>
+          <div class="feature-list">
+            <GlassCard v-for="f in features" :key="f.title" class="feature">
+              <span class="feature-emoji">{{ f.icon }}</span>
+              <div>
+                <h4>{{ f.title }}</h4>
+                <p>{{ f.desc }}</p>
+              </div>
+            </GlassCard>
+          </div>
+        </section>
+
+        <!-- Шаг 3: Инструкция по подключению -->
+        <section v-else-if="step === 2" class="instructions">
+          <h2>Подключение сервисов</h2>
+          <p class="lead">
+            Чтобы начать работу, подключите эти три сервиса.
+            Это займёт <b>5 минут</b>.
+          </p>
+
+          <GlassCard v-for="(s, i) in services" :key="s.id" class="instr-card">
+            <div class="instr-head">
+              <span class="instr-num">{{ i + 1 }}</span>
+              <div>
+                <h4>{{ s.name }}</h4>
+                <p class="instr-sub">{{ s.purpose }}</p>
+              </div>
+            </div>
+            <details class="instr-howto">
+              <summary>Где взять ключ? →</summary>
+              <ol>
+                <li v-for="st in s.steps" :key="st">{{ st }}</li>
+              </ol>
+              <a :href="s.link" target="_blank" class="instr-link">
+                Перейти к получению ключа ↗
+              </a>
+            </details>
+          </GlassCard>
+        </section>
+
+        <!-- Шаг 4: О безопасности -->
+        <section v-else-if="step === 3" class="security">
+          <div class="shield-icon">🛡️</div>
+          <h2>Безопасность данных</h2>
+          <div class="security-list">
+            <GlassCard>
+              <h4>🔐 Шифрование AES-256</h4>
+              <p>Все ваши API-ключи хранятся в зашифрованном виде</p>
+            </GlassCard>
+            <GlassCard>
+              <h4>👤 Только ваши данные</h4>
+              <p>Мы не передаём данные третьим лицам и не используем для обучения</p>
+            </GlassCard>
+            <GlassCard>
+              <h4>🗑️ Удаление в один клик</h4>
+              <p>В любой момент можете удалить аккаунт и все данные</p>
+            </GlassCard>
+          </div>
+        </section>
+
+        <!-- Шаг 5: Готово -->
+        <section v-else-if="step === 4" class="ready">
+          <GradientOrb :size="160" />
+          <h2>Всё готово!</h2>
+          <p class="hero-subtitle">
+            Переходим к подключению сервисов
+          </p>
+        </section>
+      </div>
+    </transition>
+
+    <!-- Нижняя кнопка -->
+    <footer class="footer safe-bottom">
+      <GlassButton variant="primary" size="lg" block @click="next">
+        {{ step === steps.length - 1 ? 'Подключить сервисы' : 'Далее' }}
+      </GlassButton>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import GlassCard from '../components/GlassCard.vue'
+import GlassButton from '../components/GlassButton.vue'
+import GradientOrb from '../components/GradientOrb.vue'
+import { useHaptics } from '../composables/useHaptics'
+
+const router = useRouter()
+const haptics = useHaptics()
+const step = ref(0)
+const steps = [0, 1, 2, 3, 4]
+
+const features = [
+  {
+    icon: '🤖',
+    title: 'Защита от ботов',
+    desc: 'Выявляю скликивание и возвращаю деньги',
+  },
+  {
+    icon: '📊',
+    title: 'Ежедневные отчёты',
+    desc: 'Каждое утро — полный разбор рекламы',
+  },
+  {
+    icon: '💡',
+    title: 'Автогипотезы',
+    desc: 'Предлагаю что протестировать для роста',
+  },
+  {
+    icon: '⚡',
+    title: 'Авто-оптимизация',
+    desc: 'Корректирую ставки по вашим правилам',
+  },
+]
+
+const services = [
+  {
+    id: 'direct',
+    name: 'Яндекс.Директ',
+    purpose: 'Управление рекламными кампаниями',
+    link: 'https://oauth.yandex.ru/authorize?response_type=token&client_id=YOUR_APP_ID',
+    steps: [
+      'Нажмите кнопку «Перейти» ниже',
+      'Авторизуйтесь в Яндексе под аккаунтом, где настроен Директ',
+      'Разрешите доступ приложению',
+      'Скопируйте токен из адресной строки (после access_token=)',
+      'Вернитесь в приложение и вставьте токен',
+    ],
+  },
+  {
+    id: 'metrika',
+    name: 'Яндекс.Метрика',
+    purpose: 'Анализ посещаемости и выявление ботов',
+    link: 'https://oauth.yandex.ru/authorize?response_type=token&client_id=YOUR_APP_ID',
+    steps: [
+      'Используется тот же OAuth-токен, что и для Директа',
+      'Дополнительно нужен ID счётчика',
+      'ID счётчика: откройте Метрику → ваш счётчик → в адресной строке будет "/counter/XXXXXXX" — скопируйте число',
+      'Вставьте токен и ID счётчика в приложение',
+    ],
+  },
+  {
+    id: 'hosting',
+    name: 'Хостинг (опционально)',
+    purpose: 'Мониторинг доступности сайта 24/7',
+    link: '#',
+    steps: [
+      'Укажите URL вашего сайта',
+      'Мы будем проверять его каждые 5 минут',
+      'При падении — моментальное уведомление',
+      'Если ваш хостинг имеет API — можем перезапускать упавшие службы',
+    ],
+  },
+]
+
+function next() {
+  haptics.medium()
+  if (step.value < steps.length - 1) {
+    step.value++
+  } else {
+    router.push('/connect')
+  }
+}
+
+function skip() {
+  haptics.light()
+  router.push('/connect')
+}
+</script>
+
+<style scoped>
+.onboarding {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-5);
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) 0;
+}
+
+.skip {
+  font-size: var(--fs-body);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  min-width: 60px;
+  text-align: left;
+}
+
+.dots {
+  display: flex;
+  gap: var(--space-2);
+}
+.dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: all var(--duration-normal) var(--ease-ios);
+}
+.dot.active {
+  background: var(--text-primary);
+  width: 20px;
+  border-radius: 3px;
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-6) 0;
+}
+
+/* Welcome */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-6);
+}
+
+.hero-title {
+  font-size: 42px;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.04em;
+  background: linear-gradient(180deg, #FFF 0%, rgba(255, 255, 255, 0.7) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero-subtitle {
+  font-size: var(--fs-headline);
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Features */
+.features h2 { margin-bottom: var(--space-6); }
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.feature-emoji {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.feature h4 {
+  font-size: var(--fs-headline);
+  margin-bottom: 2px;
+}
+
+.feature p {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+}
+
+/* Instructions */
+.lead {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-5);
+  font-size: var(--fs-body);
+}
+
+.instr-card {
+  margin-bottom: var(--space-3);
+}
+
+.instr-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.instr-num {
+  width: 32px; height: 32px;
+  background: var(--gradient-brand);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-body);
+  flex-shrink: 0;
+}
+
+.instr-sub {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.instr-howto {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.instr-howto summary {
+  cursor: pointer;
+  font-size: var(--fs-footnote);
+  color: var(--accent-blue);
+  font-weight: var(--fw-medium);
+  padding: var(--space-2) 0;
+}
+
+.instr-howto ol {
+  padding-left: var(--space-5);
+  margin-top: var(--space-3);
+}
+
+.instr-howto li {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: var(--space-2);
+}
+
+.instr-link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-overlay);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-footnote);
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-weight: var(--fw-medium);
+}
+
+/* Security */
+.security { text-align: center; }
+.shield-icon { font-size: 72px; margin-bottom: var(--space-4); }
+
+.security-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  text-align: left;
+}
+
+.security-list h4 { margin-bottom: 4px; font-size: var(--fs-headline); }
+.security-list p  { color: var(--text-secondary); font-size: var(--fs-footnote); }
+
+/* Ready */
+.ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+
+.footer {
+  padding: var(--space-4) 0 var(--space-6);
+}
+</style>
+7.9 Dashboard
+vue
+
+<!-- webapp/src/pages/Dashboard.vue -->
+<template>
+  <div class="dashboard safe-top">
+    <!-- Header -->
+    <header class="dash-header">
+      <div>
+        <p class="hello">Доброе утро,</p>
+        <h2>{{ user?.first_name || 'Друг' }}</h2>
+      </div>
+      <button class="avatar" @click="goSettings">
+        {{ initials }}
+      </button>
+    </header>
+
+    <!-- Баланс -->
+    <GlassCard class="balance-card" interactive @click="goBalance">
+      <div class="balance-label">Баланс</div>
+      <div class="balance-amount">
+        {{ formatMoney(balance) }}
+        <span class="currency">₽</span>
+      </div>
+      <GlassButton variant="secondary" size="sm" @click.stop="goBalance">
+        + Пополнить
+      </GlassButton>
+    </GlassCard>
+
+    <!-- Метрики за сегодня -->
+    <section class="metrics-grid">
+      <MetricCard
+        icon="👆" label="Клики" :value="metrics.clicks"
+        :change="metrics.clicks_change"
+        color="rgba(10, 132, 255, 0.15)"
+      />
+      <MetricCard
+        icon="💰" label="Расход" :value="formatMoney(metrics.spent)" unit="₽"
+        :change="metrics.spent_change"
+        color="rgba(255, 159, 10, 0.15)"
+      />
+      <MetricCard
+        icon="🎯" label="Конверсии" :value="metrics.conversions"
+        :change="metrics.conv_change"
+        color="rgba(48, 209, 88, 0.15)"
+      />
+      <MetricCard
+        icon="🤖" label="Боты" :value="metrics.bot_pct" unit="%"
+        :change="metrics.bot_change"
+        color="rgba(255, 69, 58, 0.15)"
+      />
+    </section>
+
+    <!-- Быстрые действия -->
+    <h3 class="section-title">Быстрые действия</h3>
+    <div class="actions-grid">
+      <GlassCard class="action" interactive @click="goBotShield">
+        <span class="action-emoji">🛡️</span>
+        <h4>Анти-бот</h4>
+        <p>{{ metrics.bot_saved }}₽ сэкономлено</p>
+      </GlassCard>
+      <GlassCard class="action" interactive @click="goHypotheses">
+        <span class="action-emoji">💡</span>
+        <h4>Гипотезы</h4>
+        <p>{{ hypothesesCount }} готовы к тесту</p>
+      </GlassCard>
+      <GlassCard class="action" interactive @click="goCampaigns">
+        <span class="action-emoji">📈</span>
+        <h4>Кампании</h4>
+        <p>{{ campaignsCount }} активных</p>
+      </GlassCard>
+      <GlassCard class="action" interactive @click="goReports">
+        <span class="action-emoji">📋</span>
+        <h4>Отчёты</h4>
+        <p>Полный разбор</p>
+      </GlassCard>
+    </div>
+
+    <!-- Совет AI -->
+    <GlassCard v-if="aiTip" class="ai-tip">
+      <div class="ai-tip-head">
+        <GradientOrb :size="40" />
+        <h4>AI-совет</h4>
+      </div>
+      <p>{{ aiTip }}</p>
+    </GlassCard>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import GlassCard from '../components/GlassCard.vue'
+import GlassButton from '../components/GlassButton.vue'
+import GradientOrb from '../components/GradientOrb.vue'
+import MetricCard from '../components/MetricCard.vue'
+import { useTelegram } from '../composables/useTelegram'
+import { useApi } from '../composables/useApi'
+
+const router = useRouter()
+const { user } = useTelegram()
+const api = useApi()
+
+const balance = ref(0)
+const metrics = ref({
+  clicks: 0, clicks_change: 0,
+  spent: 0, spent_change: 0,
+  conversions: 0, conv_change: 0,
+  bot_pct: 0, bot_change: 0,
+  bot_saved: 0,
+})
+const hypothesesCount = ref(0)
+const campaignsCount = ref(0)
+const aiTip = ref('')
+
+const initials = computed(() => {
+  const n = user?.first_name || 'U'
+  return n.charAt(0).toUpperCase()
+})
+
+function formatMoney(v) {
+  return new Intl.NumberFormat('ru-RU').format(Math.round(v || 0))
+}
+
+async function load() {
+  try {
+    const data = await api.get('/dashboard/summary')
+    balance.value = data.balance
+    metrics.value = data.metrics
+    hypothesesCount.value = data.hypotheses_count
+    campaignsCount.value = data.campaigns_count
+    aiTip.value = data.ai_tip
+  } catch (e) { console.error(e) }
+}
+
+const goSettings    = () => router.push('/settings')
+const goBalance     = () => router.push('/balance')
+const goBotShield   = () => router.push('/bot-shield')
+const goHypotheses  = () => router.push('/hypotheses')
+const goCampaigns   = () => router.push('/campaigns')
+const goReports     = () => router.push('/reports')
+
+onMounted(load)
+</script>
+
+<style scoped>
+.dashboard {
+  min-height: 100vh;
+  padding: var(--space-3) var(--space-5) var(--space-10);
+  position: relative;
+  z-index: 1;
+}
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+  padding-top: var(--space-3);
+}
+
+.hello {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+}
+
+.dash-header h2 {
+  font-size: var(--fs-title-1);
+  margin-top: 2px;
+}
+
+.avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: white;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-headline);
+}
+
+/* Balance */
+.balance-card {
+  margin-bottom: var(--space-6);
+  background: linear-gradient(135deg,
+    rgba(10, 132, 255, 0.15),
+    rgba(191, 90, 242, 0.1));
+  border: 1px solid rgba(10, 132, 255, 0.25);
+  padding: var(--space-5);
+}
+
+.balance-label {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: var(--fw-medium);
+}
+
+.balance-amount {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.03em;
+  margin: var(--space-2) 0 var(--space-4);
+  line-height: 1;
+}
+
+.currency {
+  font-size: var(--fs-title-2);
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+/* Metrics */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+/* Actions */
+.section-title {
+  font-size: var(--fs-title-3);
+  margin-bottom: var(--space-4);
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.action { text-align: left; }
+.action-emoji { font-size: 28px; display: block; margin-bottom: var(--space-2); }
+.action h4 { font-size: var(--fs-body); margin-bottom: 2px; }
+.action p  { font-size: var(--fs-caption); color: var(--text-secondary); }
+
+/* AI Tip */
+.ai-tip {
+  background: linear-gradient(135deg,
+    rgba(191, 90, 242, 0.1),
+    rgba(10, 132, 255, 0.1));
+}
+
+.ai-tip-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.ai-tip-head h4 { font-size: var(--fs-headline); }
+
+.ai-tip p {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-size: var(--fs-footnote);
+}
+</style>
+7.10 Экран пополнения баланса (СБП)
+vue
+
+<!-- webapp/src/pages/Balance.vue -->
+<template>
+  <div class="balance-page safe-top">
+    <header class="page-header">
+      <button class="back-btn" @click="back">← Назад</button>
+      <h3>Пополнение</h3>
+      <div style="width: 60px" />
+    </header>
+
+    <GlassCard class="current-balance">
+      <div class="label">Текущий баланс</div>
+      <div class="amount">{{ formatMoney(balance) }} ₽</div>
+    </GlassCard>
+
+    <h4 class="section-title">Выберите сумму</h4>
+
+    <div class="amounts-grid">
+      <button
+        v-for="a in presets" :key="a"
+        class="amount-btn press-bounce"
+        :class="{ active: amount === a }"
+        @click="selectAmount(a)"
+      >
+        {{ formatMoney(a) }} ₽
+      </button>
+    </div>
+
+    <GlassCard class="custom-amount">
+      <label>Другая сумма</label>
+      <input
+        v-model.number="customAmount"
+        type="number"
+        placeholder="от 500 ₽"
+        inputmode="numeric"
+      />
+    </GlassCard>
+
+    <div class="actions">
+      <GlassButton
+        variant="primary" size="lg" block
+        :loading="loading"
+        :disabled="!finalAmount || finalAmount < 500"
+        @click="createPayment"
+      >
+        Оплатить {{ finalAmount ? formatMoney(finalAmount) + ' ₽' : '' }}
+      </GlassButton>
+      <p class="hint">Оплата через СБП — моментально и без комиссии</p>
+    </div>
+
+    <!-- Bottom sheet с QR -->
+    <transition name="sheet">
+      <div v-if="paymentData" class="sheet-overlay" @click.self="closeSheet">
+        <div class="sheet">
+          <div class="sheet-handle" />
+          <h3>Оплатите по QR</h3>
+          <p class="sheet-sub">
+            Отсканируйте код в приложении вашего банка
+          </p>
+
+          <div class="qr-wrap">
+            <img :src="qrDataUrl" alt="QR" />
+          </div>
+
+          <GlassButton
+            variant="primary" size="lg" block
+            :href="paymentData.sbp_url"
+            @click="openSBPLink"
+          >
+            Открыть банк
+          </GlassButton>
+
+          <p class="sheet-footer">
+            Ждём оплату...
+            <span class="dot-loader">
+              <span></span><span></span><span></span>
+            </span>
+          </p>
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import GlassCard from '../components/GlassCard.vue'
+import GlassButton from '../components/GlassButton.vue'
+import { useApi } from '../composables/useApi'
+import { useHaptics } from '../composables/useHaptics'
+import { useTelegram } from '../composables/useTelegram'
+
+const router = useRouter()
+const api = useApi()
+const haptics = useHaptics()
+const { tg } = useTelegram()
+
+const balance = ref(0)
+const amount = ref(5000)
+const customAmount = ref(null)
+const presets = [1000, 3000, 5000, 10000, 25000, 50000]
+const loading = ref(false)
+const paymentData = ref(null)
+const qrDataUrl = ref('')
+let pollInterval = null
+
+const finalAmount = computed(() => customAmount.value || amount.value)
+
+function formatMoney(v) {
+  return new Intl.NumberFormat('ru-RU').format(v || 0)
+}
+
+function selectAmount(a) {
+  haptics.select()
+  amount.value = a
+  customAmount.value = null
+}
+
+async function createPayment() {
+  loading.value = true
+  haptics.medium()
+  try {
+    const res = await api.post('/payments/create', {
+      amount: finalAmount.value,
+    })
+    paymentData.value = res
+    qrDataUrl.value = `data:image/png;base64,${res.qr_png_base64}`
+    startPolling(res.payment_id)
+  } catch (e) {
+    haptics.error()
+    tg?.showAlert?.(e.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+function startPolling(paymentId) {
+  pollInterval = setInterval(async () => {
+    try {
+      const s = await api.get(`/payments/${paymentId}/status`)
+      if (s.status === 'paid') {
+        haptics.success()
+        tg?.showAlert?.(`Баланс пополнен на ${formatMoney(finalAmount.value)} ₽`)
+        clearInterval(pollInterval)
+        router.push('/')
+      }
+    } catch {}
+  }, 3000)
+}
+
+function closeSheet() {
+  haptics.light()
+  clearInterval(pollInterval)
+  paymentData.value = null
+}
+
+function openSBPLink() {
+  tg?.openLink?.(paymentData.value.sbp_url) || window.open(paymentData.value.sbp_url)
+}
+
+function back() { router.back() }
+
+onUnmounted(() => clearInterval(pollInterval))
+</script>
+
+<style scoped>
+.balance-page {
+  padding: var(--space-3) var(--space-5) var(--space-10);
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.back-btn {
+  color: var(--accent-blue);
+  font-size: var(--fs-body);
+}
+
+.current-balance {
+  text-align: center;
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.current-balance .label {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-2);
+}
+
+.current-balance .amount {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: var(--fw-bold);
+}
+
+.section-title {
+  font-size: var(--fs-headline);
+  margin-bottom: var(--space-3);
+}
+
+.amounts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.amount-btn {
+  padding: var(--space-4);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-body);
+  transition: all var(--duration-fast) var(--ease-ios);
+}
+
+.amount-btn.active {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
+}
+
+.custom-amount {
+  margin-bottom: var(--space-6);
+}
+
+.custom-amount label {
+  display: block;
+  font-size: var(--fs-caption);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.custom-amount input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--fs-title-3);
+  font-family: var(--font-display);
+  font-weight: var(--fw-semibold);
+  outline: none;
+}
+
+.actions .hint {
+  text-align: center;
+  margin-top: var(--space-3);
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+}
+
+/* Bottom Sheet */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--space-3) var(--space-5) var(--space-10);
+  animation: sheet-up 0.4s var(--ease-ios);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.sheet-handle {
+  width: 40px; height: 4px;
+  background: var(--border-strong);
+  border-radius: 2px;
+  margin: 0 auto var(--space-4);
+}
+
+.sheet h3 { text-align: center; margin-bottom: var(--space-2); }
+.sheet-sub {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--fs-footnote);
+  margin-bottom: var(--space-5);
+}
+
+.qr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-5);
+  background: #fff;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+}
+.qr-wrap img { max-width: 240px; width: 100%; }
+
+.sheet-footer {
+  text-align: center;
+  margin-top: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--fs-footnote);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.dot-loader {
+  display: inline-flex;
+  gap: 4px;
+}
+.dot-loader span {
+  width: 4px; height: 4px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  animation: dot 1.4s infinite;
+}
+.dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+.dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Sheet transitions */
+.sheet-enter-active, .sheet-leave-active {
+  transition: opacity var(--duration-normal);
+}
+.sheet-enter-from, .sheet-leave-to { opacity: 0; }
+</style>
+7.11 Router и main.js
+JavaScript
+
+// webapp/src/router.js
+import { createRouter, createWebHashHistory } from 'vue-router'
+
+const routes = [
+  { path: '/',           component: () => import('./pages/Dashboard.vue') },
+  { path: '/onboarding', component: () => import('./pages/Onboarding.vue') },
+  { path: '/connect',    component: () => import('./pages/Connect.vue') },
+  { path: '/campaigns',  component: () => import('./pages/Campaigns.vue') },
+  { path: '/bot-shield', component: () => import('./pages/BotShield.vue') },
+  { path: '/hypotheses', component: () => import('./pages/Hypotheses.vue') },
+  { path: '/balance',    component: () => import('./pages/Balance.vue') },
+  { path: '/reports',    component: () => import('./pages/Reports.vue') },
+  { path: '/settings',   component: () => import('./pages/Settings.vue') },
+]
+
+export default createRouter({
+  history: createWebHashHistory(),
+  routes,
+})
+JavaScript
+
+// webapp/src/main.js
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
+import './styles/main.css'
+
+createApp(App)
+  .use(createPinia())
+  .use(router)
+  .mount('#app')
+HTML
+
+<!-- webapp/index.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>AI Маркетолог</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    html, body { background: #000; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
+8️⃣ Docker Compose (локальный стенд)
+YAML
+
+# docker-compose.yml
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ai_marketer
+      POSTGRES_USER: marketer
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  api:
+    build: .
+    command: uvicorn api.server:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    depends_on: [postgres, redis]
+    ports: ["8000:8000"]
+    volumes:
+      - ./:/app
+      - ./webapp/dist:/app/webapp/dist
+
+  bot:
+    build: .
+    command: python -m bot.main
+    env_file: .env
+    depends_on: [postgres, redis]
+    volumes: ["./:/app"]
+
+  webapp:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port 3000"
+    volumes: ["./webapp:/app"]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
+env
+
+# .env.example
+BOT_TOKEN=xxx:yyy
+WEBAPP_URL=https://your-ngrok-url.ngrok.io
+
+DATABASE_URL=postgresql+asyncpg://marketer:secret@postgres:5432/ai_marketer
+REDIS_URL=redis://redis:6379
+DB_PASSWORD=secret
+
+OPENROUTER_API_KEY=sk-or-xxx
+AI_MODEL=meta-llama/llama-3.3-70b-instruct:free
+
+ENCRYPTION_KEY=  # сгенерируй: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# СБП (заглушки — заменить на реальные от банка)
+SBP_MERCHANT_ID=TEST_MERCHANT
+SBP_ACCOUNT=40702810000000000000
+9️⃣ Как запустить локально
+Bash
+
+# 1. Клонируй репозиторий
+git clone <repo> ai_marketer && cd ai_marketer
+
+# 2. Сгенерируй ключ шифрования
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# вставь в .env → ENCRYPTION_KEY
+
+# 3. Укажи BOT_TOKEN и OPENROUTER_API_KEY в .env
+# OpenRouter: https://openrouter.ai/keys (бесплатно)
+
+# 4. Для открытия WebApp снаружи нужен HTTPS — используй ngrok
+ngrok http 3000
+# скопируй https-url → .env → WEBAPP_URL
+
+# 5. Запуск
+docker-compose up -d
+
+# 6. У бота в BotFather задай:
+#    /newapp → URL = твой WEBAPP_URL
+#    /setmenubutton → "Открыть приложение" → твой WEBAPP_URL
+
+# 7. Открой бота в Telegram → /start → жми кнопку
+🗺️ Что готово и что дальше
+✅ В этой итерации
+Премиум UI в стиле ChatGPT/Apple (чёрный фон, glass, orb, SF Pro, анимации)
+Онбординг с пошаговыми инструкциями, где взять каждый API-ключ
+Детектор ботов — чистый скрипт, 0% AI
+Оптимизатор ставок — скрипт на правилах
+Генератор гипотез — скрипт + статистика
+SEO-анализатор — скрипт
+AI через OpenRouter (бесплатные модели) только как советник
+СБП-оплата с QR и polling статуса
+Прокси для TG API через твой Cloudflare Worker
+Haptic Feedback на все действия
+Проверка подписи Telegram initData
+📅 Что добавим в следующих итерациях
+Connect.vue — экран пошагового подключения с валидацией токенов в реальном времени
+BotShield.vue — визуализация бот-отчёта с графиками
+Hypotheses.vue — карточки гипотез с кнопками «запустить тест»
+Campaigns.vue — список кампаний с управлением
+Reports.vue — исторические отчёты + PDF-экспорт
+Автооптимизация по cron (планировщик с правилами)
+GEO-анализатор (парсинг Яндекс.Вордстат по регионам)
+Market Analyzer (сравнение CPC в нише с бенчмарками)
+Белая метка (white-label) для агентств
+Скажи, с чего продолжаем в следующем ответе: Connect-экран, BotShield с графиками или автооптимизация на cron?
