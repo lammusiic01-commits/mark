@@ -49,8 +49,12 @@ jobs:
 
       - name: Синтаксис Python-файлов
         run: |
-          python -m compileall -q core api migrations tests
-          echo "✅ Python-файлы компилируются"
+          for dir in core api bot engine services payments ai migrations tests; do
+            if [ -d "$dir" ]; then
+              python -m compileall -q "$dir"
+              echo "✅ $dir"
+            fi
+          done
 
       - name: Синтаксис скриптов запуска
         run: |
@@ -65,6 +69,14 @@ jobs:
           docker compose --env-file secrets.env config --quiet
           rm -f secrets.env
           echo "✅ docker-compose.yml корректен"
+
+      - name: Установка зависимостей
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Тесты движка и интеграций
+        run: python -m pytest tests -q
 
   # ─── 2. Упаковка и публикация релиза ─────────────────────────
   release:

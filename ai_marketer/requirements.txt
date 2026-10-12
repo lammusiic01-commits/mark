@@ -9,7 +9,9 @@ pydantic==2.9.2
 pydantic-settings==2.6.1
 
 # Telegram-бот
-aiogram==3.15.0
+# aiogram 3.20 требует aiohttp<3.12 и pydantic<2.12 — версии ниже выбраны
+# так, чтобы зависимости не конфликтовали при установке
+aiogram==3.20.0
 
 # API
 fastapi==0.115.5

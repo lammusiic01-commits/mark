@@ -28,6 +28,8 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -211,4 +213,79 @@ class Payment(TimestampMixin, Base):
 
 
 # Таблицы в порядке создания: нужен для create_all и для alembic autogenerate
-__all__ = ["Base", "User", "ServiceConnection", "Campaign", "BotReport", "Hypothesis", "Payment", "utcnow"]
+__all__ = [
+    "Base",
+    "BotReport",
+    "Campaign",
+    "Hypothesis",
+    "Payment",
+    "ServiceConnection",
+    "User",
+    "display_name",
+    "get_or_create_user",
+    "get_user_by_tg_id",
+    "utcnow",
+]
+
+
+# ─── Работа с пользователем ────────────────────────────────────
+
+async def get_or_create_user(
+    session: AsyncSession,
+    tg_id: int,
+    *,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    language_code: str | None = None,
+) -> tuple[User, bool]:
+    """Возвращает пользователя и признак «создан только что».
+
+    Бот вызывает это на /start, API — при первом запросе Mini App, поэтому
+    функция живёт рядом с моделями: одна реализация, без дублирования.
+    Имя и username обновляются, если пользователь поменял их в Telegram.
+    """
+    result = await session.execute(select(User).where(User.tg_id == tg_id))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        user = User(
+            tg_id=tg_id,
+            username=username,
+            first_name=first_name,
+            last_name=last_name,
+            language_code=language_code,
+        )
+        session.add(user)
+        await session.flush()
+        return user, True
+
+    changed = False
+    for field, value in (
+        ("username", username),
+        ("first_name", first_name),
+        ("last_name", last_name),
+        ("language_code", language_code),
+    ):
+        if value is not None and getattr(user, field) != value:
+            setattr(user, field, value)
+            changed = True
+    if changed:
+        await session.flush()
+
+    return user, False
+
+
+async def get_user_by_tg_id(session: AsyncSession, tg_id: int) -> User | None:
+    """Пользователь по Telegram ID — для уведомлений и проверок доступа."""
+    result = await session.execute(select(User).where(User.tg_id == tg_id))
+    return result.scalar_one_or_none()
+
+
+def display_name(user: User) -> str:
+    """Как обращаться к пользователю в сообщениях и интерфейсе."""
+    if user.first_name:
+        return user.first_name
+    if user.username:
+        return f"@{user.username}"
+    return f"id{user.tg_id}"
