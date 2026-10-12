@@ -19,6 +19,9 @@ on:
     tags:
       - "v*"
       - "ai-marketer-v*"
+    # ВРЕМЕННО: прогон проверок на ветке (убрать после отладки)
+    branches:
+      - "arena/841f905d-mark"
   workflow_dispatch:
     inputs:
       version:
@@ -84,7 +87,19 @@ jobs:
 
       - name: Тесты движка и интеграций
         working-directory: ${{ env.PROJECT_DIR }}
-        run: python -m pytest tests -q
+        run: |
+          set -o pipefail
+          python -m pytest tests -q 2>&1 | tee pytest.log
+
+      - name: Итог тестов в отчёте
+        if: always()
+        run: |
+          {
+            echo "### Результат тестов pytest"
+            echo '```'
+            tail -n 30 pytest.log 2>/dev/null || echo "лог не создан"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ─── 1b. Проверка Mini App ───────────────────────────────────
   webapp:
@@ -118,6 +133,8 @@ jobs:
     name: Сборка ZIP и публикация
     runs-on: ubuntu-24.04
     needs: [checks, webapp]
+    # Релиз публикуется по тегу v* или при ручном запуске — черновые прогоны ветки ничего не публикуют
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Клонирование
         uses: actions/checkout@v7
