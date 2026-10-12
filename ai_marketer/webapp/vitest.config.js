@@ -16,6 +16,8 @@ export default defineConfig({
     include: ['tests/**/*.spec.js'],
     testTimeout: 30000,
     hookTimeout: 30000,
+    // Проверки идут по одной: сценарии меняют состояние демо-данных
+    fileParallelism: false,
     setupFiles: ['./tests/setup.js'],
     server: {
       deps: { inline: ['vue-router'] },

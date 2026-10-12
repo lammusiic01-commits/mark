@@ -18,14 +18,15 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from api.auth import sign_init_data
 from core.config import settings
 from core.database import create_all
 from core.logger import get_logger
-from core.models import BotReport, Campaign, Payment, ServiceConnection, User, get_or_create_user
-from core.security import mask_secret
+from core.models import BotReport, Campaign, Hypothesis, Payment, ServiceConnection, User, get_or_create_user
+from services.demo import DEMO_DIRECT_TOKEN, DEMO_METRIKA_TOKEN
+from core.security import get_secret_box, mask_secret
 
 log = get_logger(__name__)
 
@@ -122,13 +123,28 @@ async def dev_seed(tg_id: int = Query(default=1, description="Telegram ID пол
             profile_row.metadata_json = profile_meta
             profile_row.is_active = True
 
-        # Подключения сервисов: без токенов, только для вида экранов
+        # Подключения сервисов. Токены — демо-маркеры (DEMO-DIRECT / DEMO-METRIKA),
+        # зашифрованные тем же ключом, что и настоящие: сервер узнаёт их и берёт
+        # данные из памяти, поэтому проверка интерфейса идёт без доступа к Яндексу.
         connections = [
-            ("yandex_direct", {"login": "remont-demo", "campaigns": 3, "currency": "RUB", "token_masked": mask_secret("y0_AgDEMO")}),
-            ("yandex_metrika", {"counter_id": 98765432, "counter_name": "Сайт ремонта", "goals": 3, "token_masked": mask_secret("y0_AgMETRIKA")}),
-            ("hosting", {"site_url": "https://remont-demo.ru", "platform": "Tilda", "platform_title": "Tilda Publishing", "hosting": "Cloudflare", "https": True, "has_metrika": True}),
+            (
+                "yandex_direct",
+                DEMO_DIRECT_TOKEN,
+                {"login": "remont-demo", "campaigns": 3, "currency": "RUB", "token_masked": mask_secret("y0_AgDEMO")},
+            ),
+            (
+                "yandex_metrika",
+                DEMO_METRIKA_TOKEN,
+                {"counter_id": 98765432, "counter_name": "Сайт ремонта", "goals": 3, "token_masked": mask_secret("y0_AgMETRIKA")},
+            ),
+            (
+                "hosting",
+                "https://remont-demo.ru",
+                {"site_url": "https://remont-demo.ru", "platform": "Tilda", "platform_title": "Tilda Publishing", "hosting": "Cloudflare", "https": True, "has_metrika": True},
+            ),
         ]
-        for service_type, meta in connections:
+        box = get_secret_box()
+        for service_type, raw_token, meta in connections:
             row = (
                 await session.execute(
                     select(ServiceConnection).where(
@@ -142,15 +158,17 @@ async def dev_seed(tg_id: int = Query(default=1, description="Telegram ID пол
                     ServiceConnection(
                         user_id=user.id,
                         service_type=service_type,
-                        encrypted_token="",  # демо-подключение: токен не нужен
+                        encrypted_token=box.encrypt(raw_token),
                         metadata_json=meta,
                         is_active=True,
                         last_checked_at=datetime.now(timezone.utc),
                     ),
                 )
             else:
+                row.encrypted_token = box.encrypt(raw_token)
                 row.metadata_json = meta
                 row.is_active = True
+                row.last_checked_at = datetime.now(timezone.utc)
 
         # Кампании со статистикой за 30 дней
         demo_campaigns = [
@@ -246,6 +264,10 @@ async def dev_seed(tg_id: int = Query(default=1, description="Telegram ID пол
         else:
             bot_row.report_data = report_payload
             bot_row.ai_summary = report_payload["summary"]
+
+        # Гипотезы: это производные данные — движок собирает их заново по кнопке.
+        # Чистим, чтобы каждое наполнение начиналось со свежих «ждут решения».
+        await session.execute(delete(Hypothesis).where(Hypothesis.user_id == user.id))
 
         # История платежей: чтобы журнал операций был не пустым
         result = await session.execute(

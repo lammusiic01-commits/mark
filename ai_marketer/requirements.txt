@@ -39,6 +39,7 @@ Pillow==11.0.0
 # Логи
 structlog==24.4.0
 
-# Тесты
+# Тесты и локальная проверка без Docker (SQLite вместо PostgreSQL)
 pytest==8.3.3
 pytest-asyncio==0.24.0
+aiosqlite==0.20.0

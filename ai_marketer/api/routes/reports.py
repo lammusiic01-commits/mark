@@ -818,7 +818,9 @@ async def geo_report(
 
     message = f"Разобрано регионов: {len(payload.get('advices') or [])}"
     if best:
-        message += f", лучший — {best.get('name', '—')}"
+        # Движок может вернуть и название строкой, и объект с полями — принимаем оба
+        best_name = best.get("name") or best.get("region_name") if isinstance(best, dict) else str(best)
+        message += f", лучший — {best_name or '—'}"
     savings = to_float((plan.summary or {}).get("potential_savings_rub"))
     if savings:
         message += f", экономия до {_money(savings)}"

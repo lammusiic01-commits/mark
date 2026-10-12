@@ -22,6 +22,13 @@ from core.logger import get_logger
 from core.models import ServiceConnection, User, get_or_create_user
 from core.security import SecretBox, get_secret_box
 from services.hosting import SiteError, build_passport, normalize_url
+from services.demo import (
+    DEMO_DIRECT_TOKEN,
+    DEMO_METRIKA_TOKEN,
+    DemoDirectClient,
+    DemoMetrikaClient,
+    is_demo_token,
+)
 from services.yandex_direct import DirectClient, build_client as build_direct_client
 from services.yandex_metrika import MetrikaClient
 
@@ -138,9 +145,20 @@ def decrypt_token(box: SecretBox, connection: ServiceConnection) -> str:
 
 
 async def direct_client(session: DbSession, user: CurrentUser) -> AsyncIterator[DirectClient]:
-    """Клиент Яндекс.Директа на время запроса."""
+    """Клиент Яндекс.Директа на время запроса.
+
+    Демо-подключения (их создаёт режим разработки) обслуживает клиент из памяти:
+    проверить интерфейс можно без доступа к api.direct.yandex.ru.
+    """
     connection = await require_connection(session, user, SERVICE_DIRECT)
     token = decrypt_token(get_secret_box(), connection)
+    if is_demo_token(token, DEMO_DIRECT_TOKEN):
+        demo = DemoDirectClient(token, login=str((connection.metadata_json or {}).get("login") or ""))
+        try:
+            yield demo
+        finally:
+            await demo.close()
+        return
     client = await build_direct_client(
         token,
         login=str((connection.metadata_json or {}).get("login") or "") or None,
@@ -156,6 +174,13 @@ async def metrika_client(session: DbSession, user: CurrentUser) -> AsyncIterator
     connection = await require_connection(session, user, SERVICE_METRIKA)
     token = decrypt_token(get_secret_box(), connection)
     counter_id = (connection.metadata_json or {}).get("counter_id")
+    if is_demo_token(token, DEMO_METRIKA_TOKEN):
+        demo = DemoMetrikaClient(token, counter_id=int(counter_id) if counter_id else None)
+        try:
+            yield demo
+        finally:
+            await demo.close()
+        return
     client = MetrikaClient(token=token, counter_id=int(counter_id) if counter_id else None)
     try:
         yield client
@@ -174,6 +199,13 @@ async def optional_direct_client(session: DbSession, user: CurrentUser) -> Async
         yield None
         return
     token = decrypt_token(get_secret_box(), connection)
+    if is_demo_token(token, DEMO_DIRECT_TOKEN):
+        demo = DemoDirectClient(token, login=str((connection.metadata_json or {}).get("login") or ""))
+        try:
+            yield demo  # type: ignore[misc]
+        finally:
+            await demo.close()
+        return
     client = DirectClient(token=token, login=str((connection.metadata_json or {}).get("login") or "") or None)
     try:
         yield client
@@ -192,6 +224,13 @@ async def optional_metrika_client(session: DbSession, user: CurrentUser) -> Asyn
         return
     token = decrypt_token(get_secret_box(), connection)
     counter_id = (connection.metadata_json or {}).get("counter_id")
+    if is_demo_token(token, DEMO_METRIKA_TOKEN):
+        demo = DemoMetrikaClient(token, counter_id=int(counter_id) if counter_id else None)
+        try:
+            yield demo  # type: ignore[misc]
+        finally:
+            await demo.close()
+        return
     client = MetrikaClient(token=token, counter_id=int(counter_id) if counter_id else None)
     try:
         yield client

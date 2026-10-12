@@ -72,6 +72,7 @@ function onTouchEnd(event) {
   align-items: flex-end;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter:
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
@@ -82,6 +83,7 @@ function onTouchEnd(event) {
   display: flex;
   flex-direction: column;
   background: var(--surface-glass-strong);
+  -webkit-backdrop-filter:
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   border: 1px solid var(--border-subtle);
