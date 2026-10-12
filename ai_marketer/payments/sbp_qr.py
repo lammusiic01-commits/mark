@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from core.logger import get_logger
 from core.models import Payment, User
-from payments.balance import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, format_money
+from payments.balance import STATUS_CHARGE, STATUS_FAILED, STATUS_PAID, STATUS_PENDING, format_money  # noqa: F401
 
 log = get_logger(__name__)
 
@@ -244,8 +244,9 @@ async def check_payment_status(session: AsyncSession, payment_id: str) -> str:
         return STATUS_FAILED
     if payment.status == STATUS_PAID:
         return STATUS_PAID
+    # Списание (проверка баланса) — не оплата: отдельный статус
     if payment.status == STATUS_CHARGE:
-        return STATUS_FAILED
+        return STATUS_CHARGE
 
     provider_status = await query_provider(payment)
     if provider_status == STATUS_PAID:

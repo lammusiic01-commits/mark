@@ -133,17 +133,37 @@ class SitePassport:
 
 
 def normalize_url(url: str) -> str:
-    """Приводит адрес к рабочему виду: без пробелов, со схемой, без хвостового слэша-дубля."""
+    """Приводит адрес к рабочему виду: без пробелов, со схемой, с проверенным доменом.
+
+    Домены на кириллице (.рф, «сайт.ру») переводим в punycode — так адрес
+    понимают все библиотеки, а человек видит свой обычный адрес в паспорте
+    сайта. Ошибка в адресе возвращается понятным текстом, а не падением.
+    """
     raw = (url or "").strip().replace(" ", "")
     if not raw:
         raise SiteError("Пустой адрес сайта")
     if not raw.startswith(("http://", "https://")):
         raw = f"https://{raw}"
+
     parsed = urlparse(raw)
-    if not parsed.netloc:
+    host = (parsed.hostname or "").strip(".")
+    if not host or "." not in host:
         raise SiteError(f"Не похоже на адрес сайта: {url}")
+
+    try:
+        ascii_host = host.encode("idna").decode("ascii")
+    except UnicodeError as error:
+        raise SiteError(f"Не удалось прочитать адрес сайта: {error}") from error
+
+    port = ""
+    try:
+        if parsed.port:
+            port = f":{parsed.port}"
+    except ValueError as error:
+        raise SiteError(f"Некорректный порт в адресе: {error}") from error
+
     path = parsed.path or "/"
-    return urlunparse((parsed.scheme, parsed.netloc, path, "", parsed.query, ""))
+    return urlunparse((parsed.scheme, f"{ascii_host}{port}", path, "", parsed.query, ""))
 
 
 def domain_of(url: str) -> str:
@@ -215,7 +235,15 @@ async def fetch_page(
             )
             return page, response
     except httpx.HTTPError as error:
-        raise SiteError(f"Сайт не ответил: {error}") from error
+        text = str(error)
+        lowered = text.upper()
+        if "CERTIFICATE_VERIFY" in lowered or "SSLCERT" in lowered:
+            raise SiteError(
+                "Сертификат сайта не проверяется: проверьте, что HTTPS настроен верно",
+            ) from error
+        if "TIMEOUT" in lowered or "TIMED OUT" in lowered:
+            raise SiteError("Сайт не ответил за 15 секунд — возможно, он недоступен из интернета") from error
+        raise SiteError(f"Сайт не ответил: {text}") from error
 
 
 async def fetch_paths(base_url: str, paths: Sequence[str], *, timeout: float = 10.0) -> dict[str, bool]:

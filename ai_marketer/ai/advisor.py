@@ -155,9 +155,12 @@ def dashboard_template(context: Mapping[str, Any]) -> str:
                 "значит можно забирать больше трафика."
             )
     if savings_value > 0:
-        parts.append(f"Гипотезы роста в сумме дают около {_money(savings_value)} в месяц.")
+        parts.append(f"Резерв в расчётах — около {_money(savings_value)} в месяц: эти деньги можно вернуть.")
     if conversions > 0:
         parts.append(f"За период пришло {conversions:.0f} заявок.")
+    leads = to_float(context.get("projected_leads_per_month", 0))
+    if leads > 0:
+        parts.append(f"При текущем бюджете это примерно {leads:.0f} заявок в месяц.")
     if not parts:
         parts.append("Данных пока мало: как только наберётся статистика, здесь появятся выводы и суммы.")
     return " ".join(parts[:3])
