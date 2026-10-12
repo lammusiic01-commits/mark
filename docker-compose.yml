@@ -1,0 +1,39 @@
+# MARK — запуск на сервере одной командой.
+#
+#   docker compose up -d --build
+#   docker compose logs -f mark
+#
+# Интерфейс: http://IP-сервера:8787
+# Данные:    папка ./data рядом с этим файлом (база, отчёты, ключ шифрования)
+
+services:
+  mark:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mark:1.0.0
+    container_name: mark
+    restart: unless-stopped
+    ports:
+      # снаружи:внутри — поменяйте левое число, если 8787 занят
+      - "8787:8787"
+    environment:
+      # 1 — работать без внешней сети (бенчмарки и демо-слепок вместо запросов к сервисам)
+      MARK_DEMO_MODE: "0"
+      # 0 — полностью запретить исходящие запросы
+      MARK_ALLOW_OUTBOUND: "1"
+      # 1 — никогда не писать на реальные сайты (только готовить пакеты правок)
+      MARK_DRY_RUN: "0"
+      MARK_LOG_LEVEL: "info"
+      TZ: "Europe/Moscow"
+    volumes:
+      # Если контейнер не может писать в папку данных (Linux, bind-монтирование) — выполните один раз:
+      #   mkdir -p data && sudo chown 1000:1000 data
+      # (1000 — пользователь node внутри контейнера)
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
