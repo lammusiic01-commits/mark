@@ -59,6 +59,13 @@ release/
 *.zip
 *.tar.gz
 
+# Локальная база для запуска без Docker (python dev_server.py / python -m bot.main)
+dev.db
+dev.db-*
+*.db-journal
+*.sqlite
+*.sqlite3
+
 # IDE
 .vscode/
 .idea/
