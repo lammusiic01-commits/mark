@@ -1,22 +1,24 @@
 # Скачать AI Маркетолог (Этап 1 — Фундамент)
 
-**Файл:** [`ai-marketer-v1.0.0.zip`](ai-marketer-v1.0.0.zip) — 57 103 байта, 39 записей (весь проект: скрипты запуска одной кнопкой, ядро, миграции, Docker, workflow релиза).
+**Основной способ — страница релиза:** [`Releases → v0.1.0-foundation`](https://github.com/lammusiic01-commits/mark/releases/tag/v0.1.0-foundation) — архив собран самим GitHub Actions при пуше тега `v0.1.0-foundation` (задача «AI Маркетолог — релиз» прошла успешно).
 
-**Контрольная сумма (SHA-256):** см. [`ai-marketer-v1.0.0.zip.sha256`](ai-marketer-v1.0.0.zip.sha256)
+**Зеркало в репозитории (если релизы недоступны):** [`ai-marketer-v0.1.0-foundation.zip`](ai-marketer-v0.1.0-foundation.zip) — 57 103 байта, 39 записей: тот же проект, собранный локально той же командой `zip` с тем же списком исключений. Контрольная сумма зеркала может отличаться от релизной только из-за меток времени внутри архива — содержимое идентично.
+
+**Контрольная сумма (SHA-256):** см. [`ai-marketer-v0.1.0-foundation.zip.sha256`](ai-marketer-v0.1.0-foundation.zip.sha256)
 
 ```
-f1f89c668b65b7b4f97804f311634ad13c5bc6080ba24710890370a05df8ba23
+53132768ca941f97d394ac6f974d774bd8883d95da5cb66130b6a9755d62978c
 ```
 
 ## Как скачать
 
-- из интерфейса GitHub: откройте `ai-marketer-v1.0.0.zip` → кнопка **Download raw file**;
-- прямой ссылкой: `https://github.com/lammusiic01-commits/mark/raw/arena/841f905d-mark/download/ai-marketer-v1.0.0.zip`
+- из интерфейса GitHub: откройте `ai-marketer-v0.1.0-foundation.zip` → кнопка **Download raw file**;
+- прямой ссылкой: `https://github.com/lammusiic01-commits/mark/raw/arena/841f905d-mark/download/ai-marketer-v0.1.0-foundation.zip`
 - из консоли:
 
 ```bash
-curl -L -o ai-marketer-v1.0.0.zip https://github.com/lammusiic01-commits/mark/raw/arena/841f905d-mark/download/ai-marketer-v1.0.0.zip
-shasum -a 256 ai-marketer-v1.0.0.zip     # должно совпасть с суммой выше
+curl -L -o ai-marketer-v0.1.0-foundation.zip https://github.com/lammusiic01-commits/mark/raw/arena/841f905d-mark/download/ai-marketer-v0.1.0-foundation.zip
+shasum -a 256 ai-marketer-v0.1.0-foundation.zip     # должно совпасть с суммой выше
 ```
 
 ## Что делать дальше

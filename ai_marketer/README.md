@@ -27,7 +27,7 @@ Telegram-бот  →  кнопка «Открыть приложение»  → 
 
 ### Linux / macOS
 ```bash
-unzip ai-marketer-v1.0.0.zip -d ai-marketer && cd ai-marketer
+unzip 'ai-marketer-*.zip' -d ai-marketer && cd ai-marketer
 chmod +x start.sh
 ./start.sh
 ```
@@ -138,7 +138,9 @@ bash -n start.sh stop.sh logs.sh update.sh
 git tag v1.0.0
 git push origin v1.0.0
 ```
-GitHub Actions соберёт `ai-marketer-v1.0.0.zip` (без `.git`, `node_modules`, `__pycache__`, `secrets.env` и `*.zip`) и приложит его к Release с инструкцией по установке. Пользователь скачивает ZIP, распаковывает и запускает `start.bat` — ничего больше.
+GitHub Actions соберёт ZIP (без `.git`, `node_modules`, `__pycache__`, `secrets.env` и `*.zip`) и приложит его к Release вместе с контрольной суммой и инструкцией по установке. Пользователь скачивает архив, распаковывает и запускает `start.bat` — ничего больше.
+
+Так же работает любой тег вида `v*`: например, проверочный релиз фундамента — `git tag v0.1.0-foundation && git push origin v0.1.0-foundation`.
 
 ---
 
