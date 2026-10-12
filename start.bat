@@ -113,8 +113,10 @@ if not exist "secrets.env" (
     echo      Обязательно:
     echo        BOT_TOKEN          - у @BotFather
     echo        TELEGRAM_PROXY_URL - уже заполнен
-    echo        OPENROUTER_API_KEY - openrouter.ai/keys
-    echo.
+        echo.
+    echo      Необязательно:
+        echo        OPENROUTER_API_KEY - AI-советы (openrouter.ai/keys)
+        echo.
     echo      После заполнения запусти start.bat снова.
     echo    ==============================================
     echo.
