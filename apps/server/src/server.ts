@@ -9,6 +9,7 @@ import { rootLogger } from './logger.js';
 import { hub } from './realtime.js';
 import { ensureDemoData } from './seed.js';
 import { scheduler } from './services/scheduler.js';
+import { telegramBots } from './services/telegram/bot.js';
 
 /**
  * Точка входа сервера MARK.
@@ -36,6 +37,23 @@ async function main(): Promise<void> {
   // Правила автооптимизации: scheduler.start() планирует все включённые правила из БД
   await scheduler.start();
 
+  // Telegram-бот: long-polling + мини-приложение.
+  // Токен берётся из MARK_TELEGRAM_BOT_TOKEN или из подключённого сервиса Telegram.
+  if (!config.telegramBotDisabled) {
+    try {
+      const started = await telegramBots.startFromConfig();
+      for (const item of started.results) {
+        if (item.ok) log.info(`Telegram-бот @${item.username ?? '—'} запущен, мини-приложение: ${item.webAppUrl ?? 'адрес не задан'}`);
+        else log.warn(`Telegram-бот не запущен: ${item.error ?? 'неизвестная ошибка'}`);
+      }
+      if (!started.results.length) log.info(started.reason ?? 'Telegram-бот не настроен');
+    } catch (error) {
+      log.warn('Не удалось запустить Telegram-бота', error);
+    }
+  } else {
+    log.info('Telegram-бот отключён (MARK_TELEGRAM_DISABLED=1)');
+  }
+
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(config.port, config.host, () => resolve());
@@ -58,6 +76,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string) => {
     log.info(`Получен ${signal}, останавливаюсь…`);
     scheduler.stop();
+    telegramBots.stopAll();
     hub.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));
     process.exit(0);

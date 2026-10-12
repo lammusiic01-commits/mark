@@ -5,6 +5,12 @@ import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-rou
  * и внутри Electron, и на статике без настройки fallback на сервере.
  */
 const routes: RouteRecordRaw[] = [
+  /**
+   * Мини-приложение Telegram: открывается кнопкой в боте (t.me/<bot>/<app>).
+   * Живёт по адресу /#/tg и не использует оболочку рабочего стола.
+   */
+  { path: '/tg', name: 'tg', component: () => import('@/miniapp/MiniApp.vue'), meta: { title: 'Приложение', mini: true } },
+  { path: '/app', redirect: '/tg' },
   { path: '/', name: 'dashboard', component: () => import('@/views/DashboardView.vue'), meta: { title: 'Дашборд', icon: 'grid' } },
   { path: '/connect', name: 'connect', component: () => import('@/views/ConnectView.vue'), meta: { title: 'Подключения', icon: 'plug' } },
   { path: '/sites', name: 'sites', component: () => import('@/views/SitesView.vue'), meta: { title: 'Сайты и SEO', icon: 'globe' } },
@@ -32,5 +38,5 @@ router.afterEach((to) => {
 });
 
 export const navigation = routes
-  .filter((route) => route.meta && route.meta.title)
+  .filter((route) => route.meta && route.meta.title && !route.meta.mini)
   .map((route) => ({ path: route.path, title: route.meta!.title as string, icon: route.meta!.icon as string }));

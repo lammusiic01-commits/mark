@@ -1,0 +1,856 @@
+/**
+ * Дизайн-система мини-приложения «AI Маркетолог».
+ *
+ * Основа — тёмная тема уровня системного приложения: чистый чёрный фон,
+ * стеклянные поверхности с размытием, тонкие световые границы, крупные
+ * радиусы, спокойная анимация. Всё считается от переменных — сменить
+ * фирменный цвет агентства можно одной строкой (--accent).
+ */
+
+:root {
+  /* Фон */
+  --bg: #000000;
+  --bg-elevated: #0a0a0a;
+  --bg-surface: #141414;
+  --bg-control: #1c1c1e;
+
+  /* Стекло */
+  --glass: rgba(28, 28, 30, 0.72);
+  --glass-strong: rgba(28, 28, 30, 0.92);
+  --glass-blur: 24px;
+  --overlay: rgba(255, 255, 255, 0.06);
+  --overlay-strong: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Текст */
+  --text: #ffffff;
+  --text-secondary: rgba(235, 235, 245, 0.6);
+  --text-tertiary: rgba(235, 235, 245, 0.3);
+
+  /* Акценты */
+  --accent: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --violet: #bf5af2;
+  --green: #30d158;
+  --green-soft: rgba(48, 209, 88, 0.16);
+  --orange: #ff9f0a;
+  --orange-soft: rgba(255, 159, 10, 0.16);
+  --red: #ff453a;
+  --red-soft: rgba(255, 69, 58, 0.16);
+
+  /* Типографика */
+  --font: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+  --fs-caption: 11px;
+  --fs-footnote: 13px;
+  --fs-body: 15px;
+  --fs-headline: 17px;
+  --fs-title: 20px;
+  --fs-title-lg: 22px;
+  --fs-large: 28px;
+  --fs-display: 34px;
+
+  /* Радиусы */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* Анимация */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --spring: cubic-bezier(0.5, 1.8, 0.5, 0.8);
+  --t-fast: 180ms;
+  --t-base: 280ms;
+  --t-slow: 420ms;
+
+  /* Отступы */
+  --gutter: 16px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#app {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* ------------------------------ Каркас ------------------------------ */
+
+.mini {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(58, 91, 204, 0.22), transparent 60%),
+    var(--bg);
+  padding-bottom: calc(76px + var(--safe-bottom));
+}
+
+.mini-screen {
+  flex: 1;
+  padding: calc(var(--safe-top) + 14px) var(--gutter) 24px;
+  animation: screen-in var(--t-base) var(--ease);
+}
+
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.mini-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.mini-greeting {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+  letter-spacing: 0.2px;
+}
+
+.mini-title {
+  font-size: var(--fs-large);
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  margin: 2px 0 0;
+}
+
+.mini-title-sm {
+  font-size: var(--fs-title);
+  font-weight: 650;
+  letter-spacing: -0.4px;
+  margin: 0;
+}
+
+.mini-section-title {
+  font-size: var(--fs-footnote);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 22px 4px 10px;
+}
+
+.mini-muted {
+  color: var(--text-secondary);
+  font-size: var(--fs-footnote);
+}
+
+.mini-hint {
+  color: var(--text-tertiary);
+  font-size: var(--fs-caption);
+  line-height: 1.4;
+}
+
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mini-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mini-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mini-scroll-x {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.mini-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+
+/* ------------------------------ Стекло ------------------------------ */
+
+.glass {
+  background: var(--glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.glass-pad {
+  padding: 16px;
+}
+
+.glass-tight {
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+}
+
+.glass-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--border);
+}
+
+.glass-row + .glass-row {
+  margin-top: 8px;
+}
+
+/* ------------------------------ Орбы ------------------------------ */
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.55;
+  pointer-events: none;
+  background: radial-gradient(circle at 30% 30%, #e8f0ff 0%, #aec5ff 32%, #6b8eff 62%, #3a5bcc 100%);
+}
+
+.orb-wrap {
+  position: relative;
+}
+
+/* ------------------------------ Кнопки ------------------------------ */
+
+.btn-glass {
+  appearance: none;
+  border: 1px solid var(--border-strong);
+  background: var(--overlay);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  padding: 12px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
+}
+
+.btn-glass:active {
+  transform: scale(0.97);
+  background: var(--overlay-strong);
+}
+
+.btn-glass:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #3a9bff, var(--accent));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(10, 132, 255, 0.32);
+}
+
+.btn-success {
+  background: linear-gradient(180deg, #4de072, var(--green));
+  border-color: transparent;
+  color: #04160a;
+  box-shadow: 0 10px 24px rgba(48, 209, 88, 0.28);
+}
+
+.btn-danger {
+  background: var(--red-soft);
+  border-color: rgba(255, 69, 58, 0.32);
+  color: #ffb3ae;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: var(--fs-footnote);
+}
+
+.btn-icon {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* ------------------------------ Метрики ------------------------------ */
+
+.metric {
+  padding: 14px;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-label {
+  font-size: var(--fs-caption);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+}
+
+.metric-value {
+  font-size: var(--fs-title-lg);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-delta {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}
+
+.delta-up {
+  color: var(--green);
+}
+
+.delta-down {
+  color: var(--red);
+}
+
+.delta-flat {
+  color: var(--text-tertiary);
+}
+
+/* ------------------------------ Строки списков ------------------------------ */
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  background: var(--glass);
+  border: 1px solid var(--border);
+  transition: transform var(--t-fast) var(--ease);
+}
+
+.list-item:active {
+  transform: scale(0.985);
+}
+
+.list-item + .list-item {
+  margin-top: 8px;
+}
+
+.list-item-title {
+  font-size: var(--fs-headline);
+  font-weight: 600;
+}
+
+.list-item-sub {
+  font-size: var(--fs-footnote);
+  color: var(--text-secondary);
+}
+
+.list-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--overlay);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ------------------------------ Значки ------------------------------ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  background: var(--overlay);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.badge-live {
+  background: var(--green-soft);
+  border-color: rgba(48, 209, 88, 0.3);
+  color: #7ff0a0;
+}
+
+.badge-warn {
+  background: var(--orange-soft);
+  border-color: rgba(255, 159, 10, 0.3);
+  color: #ffc861;
+}
+
+.badge-danger {
+  background: var(--red-soft);
+  border-color: rgba(255, 69, 58, 0.3);
+  color: #ff9d96;
+}
+
+.badge-accent {
+  background: var(--accent-soft);
+  border-color: rgba(10, 132, 255, 0.3);
+  color: #8ec6ff;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* ------------------------------ Поля ввода ------------------------------ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: var(--fs-footnote);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  appearance: none;
+  background: var(--bg-control);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-headline);
+  padding: 13px 14px;
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgba(10, 132, 255, 0.55);
+  background: #202023;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.textarea {
+  min-height: 96px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-footnote);
+  line-height: 1.45;
+}
+
+.switch {
+  position: relative;
+  width: 50px;
+  height: 30px;
+  border-radius: var(--r-pill);
+  background: var(--bg-control);
+  border: 1px solid var(--border);
+  transition: background var(--t-fast) var(--ease);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--t-base) var(--ease);
+}
+
+.switch.on {
+  background: var(--green);
+  border-color: transparent;
+}
+
+.switch.on::after {
+  transform: translateX(20px);
+}
+
+/* ------------------------------ Табы ------------------------------ */
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: var(--overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+}
+
+.tabs button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-footnote);
+  font-weight: 600;
+  padding: 9px 10px;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background var(--t-base) var(--ease), color var(--t-base) var(--ease);
+}
+
+.tabs button.active {
+  background: var(--overlay-strong);
+  color: var(--text);
+}
+
+/* ------------------------------ Таббар ------------------------------ */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: space-around;
+  gap: 4px;
+  padding: 8px 10px calc(8px + var(--safe-bottom));
+  background: rgba(10, 10, 10, 0.86);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-top: 1px solid var(--border);
+}
+
+.tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  flex: 1;
+  transition: color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.tab.active {
+  color: var(--accent);
+}
+
+.tab:active {
+  transform: scale(0.94);
+}
+
+.tab-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+
+/* ------------------------------ Шторка ------------------------------ */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  animation: fade-in var(--t-fast) var(--ease);
+}
+
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 41;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 10px var(--gutter) calc(22px + var(--safe-bottom));
+  background: var(--glass-strong);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  border-top: 1px solid var(--border-strong);
+  animation: sheet-up var(--t-base) var(--ease);
+  scrollbar-width: none;
+}
+
+.sheet::-webkit-scrollbar {
+  display: none;
+}
+
+.sheet-grabber {
+  width: 38px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.22);
+  margin: 0 auto 14px;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------ Прогресс и загрузка ------------------------------ */
+
+.progress {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--overlay);
+  overflow: hidden;
+}
+
+.progress > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, #6b8eff, var(--accent));
+  transition: width var(--t-slow) var(--ease);
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #fff;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--overlay);
+  border-radius: var(--r-md);
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Пошаговый прогресс онбординга */
+.steps {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.steps span {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--overlay);
+  transition: background var(--t-base) var(--ease);
+}
+
+.steps span.active {
+  background: var(--accent);
+}
+
+.steps span.done {
+  background: var(--green);
+}
+
+/* ------------------------------ Графики ------------------------------ */
+
+.chart {
+  width: 100%;
+  height: 84px;
+  display: block;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 64px;
+}
+
+.bars > span {
+  flex: 1;
+  border-radius: 4px 4px 2px 2px;
+  background: linear-gradient(180deg, #6b8eff, rgba(58, 91, 204, 0.35));
+  min-height: 3px;
+  transition: height var(--t-slow) var(--ease);
+}
+
+/* ------------------------------ Прочее ------------------------------ */
+
+.toast-stack {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(88px + var(--safe-bottom));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  background: var(--glass-strong);
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(20px);
+  font-size: var(--fs-footnote);
+  animation: sheet-up var(--t-base) var(--ease);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toast.success {
+  border-color: rgba(48, 209, 88, 0.35);
+}
+
+.toast.error {
+  border-color: rgba(255, 69, 58, 0.4);
+}
+
+.empty {
+  text-align: center;
+  padding: 30px 18px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty-icon {
+  font-size: 30px;
+  opacity: 0.9;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-footnote);
+  background: #0d0d0f;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px;
+  overflow-x: auto;
+  white-space: pre;
+  color: #cfe3ff;
+}
+
+.kpi-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.sheet-actions > * {
+  flex: 1;
+}

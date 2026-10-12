@@ -308,10 +308,31 @@ export const patchApplySchema = z.object({
 
 /* ------------------------------ Auth/настройки ------------------------------ */
 
+/** Платежи СБП: создание и подтверждение. */
+export const paymentCreateSchema = z.object({
+  amount: z.number().int().min(500).max(500_000),
+  comment: z.string().max(120).optional(),
+});
+
+export const paymentConfirmSchema = z.object({
+  paymentId: idSchema,
+});
+
+/** Тариф подписки. */
+export const planActivateSchema = z.object({
+  planId: z.enum(['start', 'business', 'agency']),
+  months: z.number().int().min(1).max(12).default(1),
+});
+
 export const settingsPatchSchema = z.object({
   appName: z.string().max(80).optional(),
   defaultTenantId: idSchema.optional(),
   telegramChatId: z.string().max(60).nullish(),
+  /** Публичный HTTPS-адрес MARK: из него собирается ссылка приложения для Telegram */
+  publicUrl: z.string().trim().max(300).nullish(),
+  /** Прямая ссылка на Mini App, если она отличается от publicUrl */
+  telegramWebAppUrl: z.string().trim().max(300).nullish(),
+  telegramBotUsername: z.string().max(64).nullish(),
   reportEmail: z.string().max(200).nullish(),
   autoOptimizationEnabled: z.boolean().optional(),
   botProtectionEnabled: z.boolean().optional(),

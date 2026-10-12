@@ -117,7 +117,18 @@ export async function httpRequest<T = unknown>(url: string, options: HttpRequest
     }
   }
 
-  if (!config.allowOutbound) {
+  // Локальные адреса разрешены всегда: так работают мок-серверы в тестах,
+  // локальный прокси Bot API и служебные проверки самого MARK.
+  const isLoopback = (() => {
+    try {
+      const host = new URL(finalUrl).hostname;
+      return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
+    } catch {
+      return false;
+    }
+  })();
+
+  if (!config.allowOutbound && !isLoopback) {
     return {
       ok: false,
       status: 0,

@@ -168,6 +168,85 @@ export interface ServiceDef {
   color?: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Баланс и оплата (СБП)                                              */
+/* ------------------------------------------------------------------ */
+
+export interface PaymentPlan {
+  id: string;
+  name: string;
+  price: number;
+  period: string;
+  description: string;
+  features: string[];
+  popular?: boolean;
+}
+
+export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'refunded';
+
+export interface PaymentRecord {
+  id: ID;
+  tenantId: ID;
+  amount: number;
+  status: PaymentStatus;
+  provider: 'sbp' | 'sbp_test' | 'manual' | 'card';
+  sbpUrl?: string | null;
+  payload?: string | null;
+  comment?: string | null;
+  createdAt: ISODate;
+  paidAt?: ISODate | null;
+  confirmedBy?: string | null;
+}
+
+export interface BalanceTransaction {
+  id: ID;
+  tenantId: ID;
+  type: 'topup' | 'topup_pending' | 'charge' | 'refund' | 'bonus';
+  amount: number;
+  balanceAfter: number;
+  description: string;
+  paymentId?: ID | null;
+  createdAt: ISODate;
+}
+
+export interface BalanceSnapshot {
+  balance: number;
+  hold: number;
+  currency: 'RUB';
+  plan?: string | null;
+  planUntil?: ISODate | null;
+}
+
+/** Привязанный чат Telegram: кто получает уведомления и кому доступны команды. */
+export interface TelegramLink {
+  id: ID;
+  tenantId: ID;
+  chatId: string;
+  userId?: string | null;
+  username?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  /** owner — полный доступ, manager — действия, viewer — только просмотр */
+  role: 'owner' | 'manager' | 'viewer';
+  notifications: boolean;
+  clientId?: ID | null;
+  linkedAt: ISODate;
+  lastSeenAt?: ISODate | null;
+}
+
+/** Состояние Telegram-бота агентства (для интерфейса и Mini App). */
+export interface TelegramBotStatus {
+  enabled: boolean;
+  running: boolean;
+  username?: string | null;
+  botName?: string | null;
+  webAppUrl?: string | null;
+  tokenSource: 'env' | 'account' | 'none';
+  chats: number;
+  commands: { command: string; description: string }[];
+  hint?: string;
+}
+
 export interface ConnectedAccount {
   id: ID;
   tenantId: ID;

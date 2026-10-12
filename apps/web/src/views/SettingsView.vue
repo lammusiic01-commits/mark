@@ -5,6 +5,7 @@ import { useAppStore } from '@/stores/app';
 import Icon from '@/components/Icon.vue';
 import CodeBox from '@/components/CodeBox.vue';
 import StatusPill from '@/components/StatusPill.vue';
+import TelegramBotCard from '@/components/TelegramBotCard.vue';
 
 /**
  * Настройки: окружение, флаги безопасности, диагностика сети,
@@ -161,6 +162,8 @@ MARK_LOG_LEVEL=info        # debug | info | warn | error"
   </div>
 
   <div class="grid cols-2">
+    <TelegramBotCard />
+
     <div class="card">
       <div class="card-head">
         <div>

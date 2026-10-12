@@ -80,6 +80,13 @@ export const config = {
   httpTimeoutMs: envNum('MARK_HTTP_TIMEOUT_MS', 20_000),
   httpUserAgent: `MARK/${'1.0.0'} (+${envStr('MARK_SITE_URL', 'https://mark.local')})`,
   maxCrawlPages: envNum('MARK_MAX_CRAWL_PAGES', 60),
+  /** Telegram-бот: токен и админский чат (иначе берутся из подключённого сервиса Telegram) */
+  telegramBotToken: envStr('MARK_TELEGRAM_BOT_TOKEN', ''),
+  telegramAdminChatId: envStr('MARK_TELEGRAM_ADMIN_CHAT_ID', ''),
+  /** Публичный HTTPS-адрес MARK — из него собирается ссылка Mini App для Telegram */
+  publicUrl: envStr('MARK_PUBLIC_URL', ''),
+  /** Отключить запуск бота (например, в тестах или при работе через webhook) */
+  telegramBotDisabled: envBool('MARK_TELEGRAM_DISABLED', false),
   webDir: path.join(REPO_ROOT, 'apps', 'web', 'dist'),
   /** Ключ подписи файлов отчётов (для проверки целостности) */
   get platform() {

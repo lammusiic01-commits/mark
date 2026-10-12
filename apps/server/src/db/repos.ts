@@ -2,6 +2,8 @@ import { MarkDatabase, getDb } from './database.js';
 import { randomId } from '../crypto.js';
 import type {
   AuditRun,
+  BalanceTransaction,
+  PaymentRecord,
   BotScan,
   Campaign,
   Client,
@@ -16,6 +18,7 @@ import type {
   ScheduleRule,
   ScheduleRun,
   SiteProject,
+  TelegramLink,
   User,
   WhiteLabel,
 } from '@mark/shared';
@@ -406,6 +409,9 @@ export const KINDS = {
   loginSession: 'login_session',
   siteProject: 'site_project',
   audit: 'audit',
+  telegramLink: 'telegram_link',
+  payment: 'payment',
+  balanceTransaction: 'balance_transaction',
   geoAnalysis: 'geo_analysis',
   geoPlan: 'geo_plan',
   marketAnalysis: 'market_analysis',
@@ -466,6 +472,9 @@ export interface RepoSet {
   loginSession: Repo<LoginSessionDoc>;
   siteProject: Repo<Stored<SiteProject>>;
   audit: Repo<Stored<AuditRun>>;
+  telegramLink: Repo<Stored<TelegramLink>>;
+  payment: Repo<Stored<PaymentRecord>>;
+  balanceTransaction: Repo<Stored<BalanceTransaction>>;
   geoAnalysis: Repo<Stored<GeoAnalysis>>;
   geoPlan: Repo<Stored<GeoPlan>>;
   marketAnalysis: Repo<Stored<MarketAnalysis>>;
@@ -496,6 +505,9 @@ export async function repos(): Promise<RepoSet> {
     loginSession: repo<LoginSessionDoc>(db, KINDS.loginSession),
     siteProject: repo<Stored<SiteProject>>(db, KINDS.siteProject),
     audit: repo<Stored<AuditRun>>(db, KINDS.audit),
+    telegramLink: repo<Stored<TelegramLink>>(db, KINDS.telegramLink),
+    payment: repo<Stored<PaymentRecord>>(db, KINDS.payment),
+    balanceTransaction: repo<Stored<BalanceTransaction>>(db, KINDS.balanceTransaction),
     geoAnalysis: repo<Stored<GeoAnalysis>>(db, KINDS.geoAnalysis),
     geoPlan: repo<Stored<GeoPlan>>(db, KINDS.geoPlan),
     marketAnalysis: repo<Stored<MarketAnalysis>>(db, KINDS.marketAnalysis),
