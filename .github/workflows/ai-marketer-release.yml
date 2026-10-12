@@ -94,6 +94,7 @@ jobs:
 
       - name: Итог тестов в отчёте
         if: always()
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           {
             echo "### Результат тестов pytest"
