@@ -40,10 +40,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Клонирование
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -73,7 +73,7 @@ jobs:
     needs: checks
     steps:
       - name: Клонирование
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Определение версии
         id: version
@@ -86,9 +86,11 @@ jobs:
               TAG="v0.0.0-$(date -u +%Y%m%d)"
             fi
           fi
+          LABEL="${TAG#ai-marketer-}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "zip=ai-marketer-$TAG.zip" >> "$GITHUB_OUTPUT"
-          echo "Собираю релиз $TAG"
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
+          echo "zip=ai-marketer-$LABEL.zip" >> "$GITHUB_OUTPUT"
+          echo "Собираю релиз $TAG (архив ai-marketer-$LABEL.zip)"
 
       - name: Сборка ZIP
         run: |
@@ -121,16 +123,16 @@ jobs:
         run: sha256sum "${{ steps.version.outputs.zip }}" > "${{ steps.version.outputs.zip }}.sha256"
 
       - name: Публикация релиза
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: "AI Маркетолог ${{ steps.version.outputs.tag }}"
+          name: "AI Маркетолог ${{ steps.version.outputs.label }}"
           generate_release_notes: true
           files: |
             ${{ steps.version.outputs.zip }}
             ${{ steps.version.outputs.zip }}.sha256
           body: |
-            # 🤖 AI Маркетолог ${{ steps.version.outputs.tag }}
+            # 🤖 AI Маркетолог ${{ steps.version.outputs.label }}
 
             Управление Яндекс.Директом из Telegram: бот присылает отчёты,
             Mini App считает гипотезы, находит слив бюджета на ботов и
