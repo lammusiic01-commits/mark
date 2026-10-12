@@ -15,36 +15,46 @@ echo        Telegram Mini App для Windows
 echo    ==============================================
 echo.
 
-:: ═══ [1/7] Python ═══════════════════════════════════════
-echo    [1/7] Проверка Python...
-python --version >nul 2>&1
-if errorlevel 1 (
+:: ═══ [1/7] Python (нужен 3.11-3.13) ═════════════════════
+echo    [1/7] Проверка Python (нужен 3.11, 3.12 или 3.13)...
+call :find_python
+if not defined PYCMD (
     echo.
-    echo    [ОШИБКА] Python не найден.
-    echo    Скачай Python 3.11+ с https://python.org
-    echo    ВАЖНО: поставь галочку "Add Python to PATH"
+    echo    [ОШИБКА] Не найден Python 3.11, 3.12 или 3.13.
+    echo    Для части библиотек проекта нет готовых сборок под Python 3.14 и новее,
+    echo    поэтому нужен Python 3.12 (рекомендуется).
     echo.
-    start https://www.python.org/downloads/
+    echo    Установленные версии Python:
+    py -0p 2>nul
+    echo.
+    set /p "INSTALL_PY=   Установить Python 3.12 через winget? (Y/N): "
+    if /i "!INSTALL_PY!"=="Y" (
+        winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+        echo.
+        echo    Python 3.12 установлен. Закрой это окно и запусти start.bat снова.
+    ) else (
+        echo    Скачай Python 3.12: https://www.python.org/downloads/release/python-3129/
+        echo    ВАЖНО: поставь галочку "Add python.exe to PATH"
+    )
+    echo.
     pause
     exit /b 1
 )
-python -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" >nul 2>&1
-if errorlevel 1 (
-    echo.
-    echo    [ОШИБКА] Нужен Python 3.11 или новее.
-    python --version
-    echo    Скачай свежую версию с https://python.org
-    pause
-    exit /b 1
-)
-for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PYVER=%%v
-echo          Python !PYVER!
+for /f "tokens=2" %%v in ('%PYCMD% --version 2^>^&1') do set PYVER=%%v
+echo          Python !PYVER! (%PYCMD%)
 
 :: ═══ [2/7] Venv ═════════════════════════════════════════
 echo.
 echo    [2/7] Виртуальное окружение...
+if exist "venv\Scripts\python.exe" (
+    venv\Scripts\python.exe -c "import sys; sys.exit(0 if (3,11) <= sys.version_info[:2] <= (3,13) else 1)" >nul 2>&1
+    if errorlevel 1 (
+        echo          Существующее venv несовместимо с Python, пересоздаю...
+        rmdir /s /q venv
+    )
+)
 if not exist "venv\Scripts\python.exe" (
-    python -m venv venv
+    %PYCMD% -m venv venv
     if errorlevel 1 (
         echo    [ОШИБКА] Не удалось создать venv.
         pause
@@ -238,3 +248,15 @@ echo.
 echo    Сервер остановлен (код !EXIT_CODE!).
 pause
 exit /b !EXIT_CODE!
+
+:find_python
+set "PYCMD="
+for %%V in (3.13 3.12 3.11) do (
+    if not defined PYCMD (
+        py -%%V -c "import sys" >nul 2>&1 && set "PYCMD=py -%%V"
+    )
+)
+if not defined PYCMD (
+    python -c "import sys; sys.exit(0 if (3,11) <= sys.version_info[:2] <= (3,13) else 1)" >nul 2>&1 && set "PYCMD=python"
+)
+goto :eof

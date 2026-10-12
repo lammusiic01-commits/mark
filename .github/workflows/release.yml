@@ -57,5 +57,5 @@ jobs:
 
             ### Требования
             - Windows 10/11
-            - Python 3.11+ ([скачать](https://python.org))
+            - Python 3.12 (допустимо 3.11–3.13; 3.14+ не поддерживается) ([скачать](https://www.python.org/downloads/release/python-3129/))
             - Cloudflare Worker для прокси TG API (уже настроен)
