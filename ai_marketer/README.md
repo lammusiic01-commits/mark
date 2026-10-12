@@ -233,14 +233,24 @@ docker compose --env-file secrets.env --profile api run --rm api pytest -q
 ## 🚢 Релиз
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.2          # текущая версия — v1.0.1
+git push origin v1.0.2
 ```
 
-GitHub Actions (workflow `release.yml`) прогонит проверки, соберёт
-`ai-marketer-1.0.0.zip`, проверит, что внутри нет `secrets.env`, посчитает
+GitHub Actions (workflow `ai-marketer-release.yml`) прогонит проверки, соберёт
+`ai-marketer-v1.0.2.zip`, проверит, что внутри нет `secrets.env`, посчитает
 SHA-256 и приложит архив к релизу — именно из него пользователь запускает
 `start.bat` одной кнопкой.
+
+**Актуальные релизы:**
+
+| Версия | Архив | Что вошло |
+|---|---|---|
+| **v1.0.1** | [ai-marketer-v1.0.1.zip](https://github.com/lammusiic01-commits/mark/releases/download/v1.0.1/ai-marketer-v1.0.1.zip) | CRLF в `.bat` для Windows, генерация ключа в PowerShell 7 и 5.1, устойчивый цикл уведомлений при недоступном Redis, автосхема БД в режиме разработки, заглушка Telegram API |
+| v1.0.0 | [ai-marketer-v1.0.0.zip](https://github.com/lammusiic01-commits/mark/releases/download/v1.0.0/ai-marketer-v1.0.0.zip) | первый полный релиз: бот, 9 экранов Mini App, 8 модулей движка, AI-советник, СБП |
+
+Тексты редизайна и версия в API живут в одном месте: `api/server.py` (`VERSION`) и
+`webapp/package.json` (`version`).
 
 ---
 
