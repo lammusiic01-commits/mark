@@ -61,9 +61,8 @@ function close(id) {
   padding: 12px var(--space-4);
   border-radius: var(--radius-md);
   background: rgba(28, 28, 30, 0.94);
-  -webkit-backdrop-filter:
-  backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-lg);
   color: var(--text-primary);

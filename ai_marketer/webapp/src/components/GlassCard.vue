@@ -11,9 +11,8 @@ defineProps({ interactive: Boolean })
 <style scoped>
 .glass-card {
   background: var(--surface-glass);
-  -webkit-backdrop-filter:
-  backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: var(--space-5);

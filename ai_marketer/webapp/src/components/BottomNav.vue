@@ -68,9 +68,8 @@ function go(item) {
   gap: 2px;
   padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
   background: rgba(10, 10, 10, 0.86);
-  -webkit-backdrop-filter:
-  backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
   border-top: 1px solid var(--border-subtle);
 }
 

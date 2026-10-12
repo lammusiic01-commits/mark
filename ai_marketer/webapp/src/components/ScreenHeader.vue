@@ -57,9 +57,8 @@ function onAction() {
   gap: var(--space-3);
   padding: calc(10px + env(safe-area-inset-top)) var(--space-4) 10px;
   background: rgba(10, 10, 10, 0.78);
-  -webkit-backdrop-filter:
-  backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid var(--border-subtle);
 }
 

@@ -203,8 +203,9 @@ def test_workflow_actions_are_current() -> None:
 def test_dockerfile_builds_miniapp() -> None:
     """Интерфейс собирается внутри образа и раздаётся бэкендом."""
     text = read(ROOT / "Dockerfile")
-    assert "node:20-alpine" in text, "нет ступени сборки фронтенда"
-    assert "npm run build" in text
+    # Node 22 нужен: vitest 5 и jsdom 30 не работают на более старых версиях
+    assert "node:22-alpine" in text, "нет ступени сборки фронтенда"
+    assert "npm ci" in text and "npm run build" in text
     assert "/app/webapp/dist" in text, "собранный интерфейс не попадает в образ"
 
 

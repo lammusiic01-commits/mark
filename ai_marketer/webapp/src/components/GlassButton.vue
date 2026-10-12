@@ -72,7 +72,7 @@ function handleClick(e) {
 .variant-secondary {
   background: var(--surface-overlay);
   color: var(--text-primary);
-  -webkit-backdrop-filter:
+  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
 }

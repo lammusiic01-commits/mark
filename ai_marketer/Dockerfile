@@ -7,7 +7,7 @@
 # ─── Этап 0: сборка Mini App (Vue 3 + Vite) ────────────────────
 # Собранный интерфейс забирает бэкенд и раздаёт его сам — отдельный nginx
 # не нужен, поэтому Telegram-приложению достаточно одного адреса.
-FROM node:20-alpine AS webapp
+FROM node:22-alpine AS webapp
 
 WORKDIR /web
 
