@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: ai-marketer-release-${{ github.ref }}
@@ -100,6 +101,16 @@ jobs:
             tail -n 30 pytest.log 2>/dev/null || echo "лог не создан"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # ВРЕМЕННО: лог падения — комментарием в PR (убрать после отладки)
+          if [ -f pytest.log ]; then
+            {
+              echo "### Диагностика прогона pytest (временно)"
+              echo '```'
+              tail -n 60 pytest.log
+              echo '```'
+            } > diagnose.md
+            gh pr comment 1 --body-file diagnose.md || true
+          fi
           # Упавшие проверки показываем пометками: так их видно и в GitHub, и в API
           if [ -f pytest.log ]; then
             grep -E "^(FAILED|ERROR)|^E  " pytest.log | tail -n 10 | while IFS= read -r line; do
