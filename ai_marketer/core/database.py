@@ -21,16 +21,24 @@ from core.models import Base
 
 log = get_logger(__name__)
 
-# Пул соединений: размеры подобраны под один небольшой сервер агентства
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=1800,
-    future=True,
-)
+# Пул соединений: размеры подобраны под один небольшой сервер агентства.
+# Для SQLite (локальная проверка без Docker) пул не нужен — там свои правила.
+def _engine_options() -> dict[str, object]:
+    """Параметры пула под конкретную базу."""
+    options: dict[str, object] = {"echo": False, "future": True}
+    if settings.DATABASE_URL.startswith("sqlite"):
+        options["poolclass"] = NullPool
+        return options
+    options.update(
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+        pool_recycle=1800,
+    )
+    return options
+
+
+engine = create_async_engine(settings.DATABASE_URL, **_engine_options())
 
 # Сессии «на запрос»: expire_on_commit=False — можно читать поля после commit
 SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False, autoflush=False)

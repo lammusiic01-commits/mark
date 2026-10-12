@@ -25,11 +25,32 @@ ROOT = Path(__file__).resolve().parent.parent
 # ═══════════════════════ Конфигурация ═════════════════════════
 
 def test_settings_builds_connection_strings() -> None:
-    from core.config import settings
+    """Адрес базы: собран из частей, но переменная DATABASE_URL его перекрывает.
 
-    assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
-    assert f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}" in settings.DATABASE_URL
+    Перекрытие нужно для локальной проверки без Docker (sqlite) и для облачных
+    баз, которые выдают готовую строку подключения.
+    """
+    from core.config import Settings, settings
+
+    if settings.DATABASE_URL_OVERRIDE:
+        assert settings.DATABASE_URL == settings.DATABASE_URL_OVERRIDE
+    else:
+        assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
+        assert f"@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}" in settings.DATABASE_URL
+
     assert settings.REDIS_URL == f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
+
+    # Без переменной адрес собирается из частей — проверяем на отдельном объекте
+    composed = Settings(
+        BOT_TOKEN="1234567890:TEST-TOKEN-TEST-TOKEN-TEST",
+        WEBAPP_URL="https://example.org",
+        TELEGRAM_PROXY_URL="https://tg-proxy.example.org",
+        OPENROUTER_API_KEY="sk-or-v1-test",
+        DB_PASSWORD="test-password",
+        ENCRYPTION_KEY="uRb9lP8DLGYq1Xo3wQeZ0Jv0nHt2sK7cM5aF4dR6bT8=",
+    )
+    assert composed.DATABASE_URL.startswith("postgresql+asyncpg://")
+    assert f"@{composed.DB_HOST}:{composed.DB_PORT}/{composed.DB_NAME}" in composed.DATABASE_URL
 
 
 def test_settings_validates_secrets() -> None:

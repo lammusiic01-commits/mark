@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="AI Маркетолог — управление Яндекс.Директом прямо в Telegram" />
+    <title>AI Маркетолог</title>
+
+    <!--
+      SDK Telegram. Открывая приложение внутри мессенджера, Telegram добавляет
+      его сам; тег нужен для проверки в обычном браузере. Если скрипт не
+      загрузился, приложение продолжает работать (режим просмотра).
+    -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+      html,
+      body {
+        background: #000;
+        margin: 0;
+        overscroll-behavior: none;
+      }
+
+      /* Первый экран до загрузки скриптов: без белой вспышки */
+      #app:empty::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: radial-gradient(circle at 50% 40%, rgba(10, 132, 255, 0.12), transparent 60%), #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

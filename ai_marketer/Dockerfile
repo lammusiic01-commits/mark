@@ -4,6 +4,21 @@
 #   через env_file в docker-compose.yml (файл secrets.env).
 # ═══════════════════════════════════════════════════════════════
 
+# ─── Этап 0: сборка Mini App (Vue 3 + Vite) ────────────────────
+# Собранный интерфейс забирает бэкенд и раздаёт его сам — отдельный nginx
+# не нужен, поэтому Telegram-приложению достаточно одного адреса.
+FROM node:20-alpine AS webapp
+
+WORKDIR /web
+
+# Сначала манифесты: слой с зависимостями переиспользуется при правках кода
+COPY webapp/package.json webapp/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY webapp/ ./
+RUN npm run build
+
+
 # ─── Этап 1: сборка зависимостей в отдельном окружении ─────────
 FROM python:3.12-slim AS builder
 
@@ -47,6 +62,9 @@ WORKDIR /app
 
 # Код проекта (секреты исключены через .dockerignore)
 COPY --chown=marketer:marketer . /app
+
+# Собранный Mini App: API отдаёт его по адресу WEBAPP_URL
+COPY --from=webapp --chown=marketer:marketer /web/dist /app/webapp/dist
 
 USER marketer
 

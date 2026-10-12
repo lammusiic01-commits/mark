@@ -260,6 +260,7 @@ async def dashboard(session: DbSession, user: CurrentUser, profile: ProfileDep) 
             "risk_score": data["risk_score"],
             "risk_level": _risk_level(data["risk_score"]),
             "wasted_rub": round(data["wasted"], 2),
+            "wasted_text": format_money(data["wasted"]),
             "saved_rub": round(data["savings"], 2),
             "saved_text": format_money(data["savings"]),
             "has_report": data["report"] is not None,

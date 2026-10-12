@@ -1,0 +1,91 @@
+:root {
+  /* ─── Цвета (чёрная премиум-тема как ChatGPT в TG) ─── */
+  --bg-primary: #000000;
+  --bg-secondary: #0A0A0A;
+  --bg-tertiary: #141414;
+  --bg-elevated: #1C1C1E;
+
+  --surface-glass: rgba(28, 28, 30, 0.72);
+  --surface-glass-strong: rgba(28, 28, 30, 0.92);
+  --surface-overlay: rgba(255, 255, 255, 0.06);
+  --surface-overlay-hover: rgba(255, 255, 255, 0.10);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  --text-primary: #FFFFFF;
+  --text-secondary: rgba(235, 235, 245, 0.60);
+  --text-tertiary: rgba(235, 235, 245, 0.30);
+
+  --accent-blue: #0A84FF;
+  --accent-purple: #BF5AF2;
+  --accent-green: #30D158;
+  --accent-orange: #FF9F0A;
+  --accent-red: #FF453A;
+
+  /* Градиент для «орба» как у ChatGPT */
+  --gradient-orb: radial-gradient(
+    circle at 30% 30%,
+    #E8F0FF 0%,
+    #AEC5FF 35%,
+    #6B8EFF 70%,
+    #3A5BCC 100%
+  );
+
+  --gradient-brand: linear-gradient(135deg, #0A84FF 0%, #BF5AF2 100%);
+
+  /* ─── Типографика (SF Pro / Inter fallback) ─── */
+  --font-display:
+    -apple-system, 'SF Pro Display', 'Inter', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  --font-text:
+    -apple-system, 'SF Pro Text', 'Inter', system-ui,
+    'Segoe UI', Roboto, sans-serif;
+  --font-mono:
+    'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --fs-caption: 11px;
+  --fs-footnote: 13px;
+  --fs-body: 15px;
+  --fs-headline: 17px;
+  --fs-title-3: 20px;
+  --fs-title-2: 22px;
+  --fs-title-1: 28px;
+  --fs-large: 34px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ─── Spacing (кратно 4) ─── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ─── Радиусы ─── */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  /* ─── Анимации (iOS-like) ─── */
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.5, 1.8, 0.5, 0.8);
+  --duration-fast: 180ms;
+  --duration-normal: 280ms;
+  --duration-slow: 420ms;
+
+  /* ─── Тени ─── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 40px rgba(10, 132, 255, 0.3);
+}

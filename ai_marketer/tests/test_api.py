@@ -22,6 +22,7 @@ import asyncio
 import base64
 import json
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -155,10 +156,16 @@ async def _post_with_profile(client, headers, path: str, target_cpa, *, site_url
             app.dependency_overrides[profile_of] = previous
 
 
+
+def _temp_db(name: str) -> str:
+    """Путь к тестовой базе во временном каталоге (своей для каждого запуска)."""
+    directory = Path(tempfile.mkdtemp(prefix=f"ai-marketer-{name}-"))
+    return str(directory / f"{name}.db")
+
 async def _http_checks() -> None:
 
-    engine = make_isolated_engine("sqlite+aiosqlite:////tmp/am-api/smoke.db")
-    Path("/tmp/am-api/smoke.db").unlink(missing_ok=True)
+    db_path = _temp_db("smoke")
+    engine = make_isolated_engine(f"sqlite+aiosqlite:///{db_path}")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -521,7 +528,8 @@ def _start_local_site():
 
 async def _connection_checks() -> None:
 
-    engine = make_isolated_engine("sqlite+aiosqlite:////tmp/am-api/smoke2.db")
+    db_path = _temp_db("smoke2")
+    engine = make_isolated_engine(f"sqlite+aiosqlite:///{db_path}")
     Path("/tmp/am-api/smoke2.db").unlink(missing_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

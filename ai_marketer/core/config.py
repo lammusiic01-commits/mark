@@ -80,11 +80,24 @@ class Settings(BaseSettings):
     ENV: Literal["development", "production"] = "production"
     LOG_LEVEL: str = Field(default="INFO")
 
+    # Необязательное поле: строка подключения целиком (DATABASE_URL).
+    # Нужна там, где хостинг выдаёт одну строку вместо набора DB_*; в
+    # остальных случаях части соединяются из DB_HOST/DB_PORT/DB_NAME/DB_USER.
+    DATABASE_URL_OVERRIDE: str = Field(default="", alias="DATABASE_URL")
+
     # ─── Поля, вычисляемые из секретов ─────────────────────────
 
     @property
     def DATABASE_URL(self) -> str:
-        """Строка подключения для asyncpg (SQLAlchemy async)."""
+        """Строка подключения для SQLAlchemy async.
+
+        Если задан DATABASE_URL (как это делают некоторые хостинги), берём его
+        целиком: так можно подключить и PostgreSQL от хостинга, и SQLite на
+        время локальной проверки.
+        """
+        override = (self.DATABASE_URL_OVERRIDE or "").strip()
+        if override:
+            return override
         return (
             f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

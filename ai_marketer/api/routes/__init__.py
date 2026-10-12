@@ -43,4 +43,12 @@ _add("campaigns", "api.routes.campaigns")
 _add("reports", "api.routes.reports")
 _add("payments", "api.routes.payments")
 
+# Режим разработки: вход без Telegram и демо-данные для проверки в браузере.
+# Подключается только при ENV=development — в бою этих адресов не существует.
+from core.config import settings  # noqa: E402
+
+if not settings.is_production:
+    _add("dev", "api.routes.dev")
+    log.warning("Режим разработки: адреса /api/dev доступны (в бою их не будет)")
+
 __all__ = ["ROUTERS"]
