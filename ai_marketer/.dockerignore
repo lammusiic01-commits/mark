@@ -1,0 +1,33 @@
+# Секреты никогда не попадают в образ — они передаются через env_file
+secrets.env
+.env
+*.key
+*.pem
+
+.git
+.gitignore
+
+# Python-мусор
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+webapp/node_modules/
+webapp/dist/
+
+# Мусор и данные
+*.log
+logs/
+backups/
+release/
+*.zip
+.DS_Store
+.idea/
+.vscode/

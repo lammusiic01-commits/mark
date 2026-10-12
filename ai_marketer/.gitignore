@@ -1,0 +1,79 @@
+# ═══════════════════════════════════════════════════════════════
+#   AI МАРКЕТОЛОГ — что НЕ попадает в git
+# ═══════════════════════════════════════════════════════════════
+
+# Секреты — только локально, в репозиторий не уходят
+secrets.env
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Node / WebApp
+node_modules/
+webapp/dist/
+webapp/.vite/
+webapp/node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Данные и логи
+*.log
+logs/
+.pgdata/
+.redisdata/
+*.sqlite
+*.sqlite3
+backups/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Релизы
+release/
+*.zip
+*.tar.gz
+
+# Локальная база для запуска без Docker (python dev_server.py / python -m bot.main)
+dev.db
+dev.db-*
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

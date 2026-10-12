@@ -1,0 +1,37 @@
+{
+  "name": "mark",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MARK — платформа автоматизации SEO/GEO, защиты от ботов и управления рекламными кампаниями",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/server",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "npm run dev -w @mark/server",
+    "dev:web": "npm run dev -w @mark/web",
+    "build": "npm run build -w @mark/server && npm run build -w @mark/web",
+    "build:server": "npm run build -w @mark/server",
+    "build:web": "npm run build -w @mark/web",
+    "start": "node apps/server/dist/server.mjs --serve-web",
+    "typecheck": "npm run typecheck -w @mark/shared && npm run typecheck -w @mark/server && npm run typecheck -w @mark/web",
+    "test": "npm run test -w @mark/server",
+    "test:watch": "npm run test:watch -w @mark/server",
+    "seed": "tsx apps/server/src/cli/seed.ts",
+    "desktop:install": "npm --prefix apps/desktop install",
+    "desktop:start": "npm --prefix apps/desktop start",
+    "desktop:dist": "npm --prefix apps/desktop run dist",
+    "zip": "bash scripts/build-zip.sh"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

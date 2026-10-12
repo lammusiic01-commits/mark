@@ -1,0 +1,79 @@
+
+/* Fade + slide-up — как у iOS модалок */
+.view-enter-active,
+.view-leave-active {
+  transition: opacity var(--duration-normal) var(--ease-ios),
+              transform var(--duration-normal) var(--ease-ios);
+}
+.view-enter-from { opacity: 0; transform: translateY(14px); }
+.view-leave-to   { opacity: 0; transform: translateY(-8px); }
+
+/* Slide-right для push-навигации */
+.push-enter-active,
+.push-leave-active {
+  transition: transform var(--duration-normal) var(--ease-ios),
+              opacity var(--duration-normal) var(--ease-ios);
+}
+.push-enter-from { transform: translateX(100%); opacity: 0.5; }
+.push-leave-to   { transform: translateX(-30%); opacity: 0.5; }
+
+/* Pulsing orb (как у ChatGPT) */
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); filter: blur(0px); }
+  50%      { transform: scale(1.05); filter: blur(0.5px); }
+}
+
+@keyframes orb-glow {
+  0%, 100% { box-shadow: 0 0 60px rgba(174, 197, 255, 0.3); }
+  50%      { box-shadow: 0 0 100px rgba(174, 197, 255, 0.5); }
+}
+
+/* Shimmer loader */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-overlay) 0%,
+    var(--surface-overlay-hover) 50%,
+    var(--surface-overlay) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Spring bounce для кнопок */
+.press-bounce {
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+.press-bounce:active {
+  transform: scale(0.96);
+}
+
+/* Пульс точки статуса: «ждём оплату», «идёт проверка» */
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+.pulse {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+/* Вращение индикатора обновления */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Полосы загрузки */
+@keyframes skeleton {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}

@@ -1,0 +1,20 @@
+# В контекст сборки не нужно попадать: зависимости, данные, сборки, архивы, служебные файлы
+node_modules
+**/node_modules
+.data
+dist
+**/dist
+release
+**/release
+*.zip
+*.tar.gz
+*.log
+.git
+.gitignore
+.vscode
+.idea
+**/coverage
+**/tmp
+apps/desktop/release
+apps/web/dist
+apps/server/dist

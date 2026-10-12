@@ -1,0 +1,89 @@
+@import './variables.css';
+@import './animations.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: var(--font-text);
+  font-size: var(--fs-body);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+/* Включаем выделение для input/textarea */
+input, textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: var(--fs-large); line-height: 1.1; }
+h2 { font-size: var(--fs-title-1); line-height: 1.15; }
+h3 { font-size: var(--fs-title-2); line-height: 1.2; }
+h4 { font-size: var(--fs-title-3); line-height: 1.25; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+a { color: var(--accent-blue); }
+
+/* Scrollbar — скрыт, но работает */
+::-webkit-scrollbar { width: 0; display: none; }
+
+/* Safe area для iPhone: свои значения, если Telegram их не передал */
+:root {
+  --tg-safe-top: env(safe-area-inset-top, 0px);
+  --tg-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Экран: нижний отступ под навигацией и «домашней» полосой iPhone */
+.page {
+  min-height: 100vh;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  position: relative;
+  z-index: 1;
+}
+
+.page-plain {
+  min-height: 100vh;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  position: relative;
+  z-index: 1;
+}
+
+/* Одинаковые полосы загрузки на всех экранах */
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--surface-overlay) 25%, var(--surface-overlay-hover) 37%, var(--surface-overlay) 63%);
+  background-size: 400% 100%;
+  animation: skeleton 1.4s ease infinite;
+}
