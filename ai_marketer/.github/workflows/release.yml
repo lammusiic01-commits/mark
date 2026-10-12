@@ -1,0 +1,169 @@
+# ═══════════════════════════════════════════════════════════════
+#   AI МАРКЕТОЛОГ — СБОРКА РЕЛИЗА
+#
+#   Триггер: тег вида v1.0.0 (например: git tag v1.0.0 && git push --tags)
+#   Результат: ZIP-архив проекта, приложенный к GitHub Release.
+#
+#   Пользователь скачивает ZIP, распаковывает и запускает start.bat
+#   (или ./start.sh) — больше ничего не нужно.
+#
+#   В архив НЕ попадают: .git, зависимости, кэши, секреты и сами архивы.
+#   Папки node_modules/dist исключены намеренно: WebApp собирается внутри
+#   Docker-образа (multi-stage) во время start.bat, поэтому ручные команды
+#   npm не требуются.
+# ═══════════════════════════════════════════════════════════════
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Версия релиза, например v1.0.0 (если пусто — берётся имя ветки)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ─── 1. Проверки перед упаковкой ─────────────────────────────
+  checks:
+    name: Проверка кода
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Клонирование
+        uses: actions/checkout@v4
+
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Синтаксис Python-файлов
+        run: |
+          python -m compileall -q core api migrations tests
+          echo "✅ Python-файлы компилируются"
+
+      - name: Синтаксис скриптов запуска
+        run: |
+          for script in start.sh stop.sh logs.sh update.sh; do
+            bash -n "$script"
+            echo "✅ $script"
+          done
+
+      - name: Проверка docker-compose.yml
+        run: |
+          cp secrets.env.example secrets.env
+          docker compose --env-file secrets.env config --quiet
+          rm -f secrets.env
+          echo "✅ docker-compose.yml корректен"
+
+  # ─── 2. Упаковка и публикация релиза ─────────────────────────
+  release:
+    name: Сборка ZIP и публикация
+    runs-on: ubuntu-24.04
+    needs: checks
+    steps:
+      - name: Клонирование
+        uses: actions/checkout@v4
+
+      - name: Определение версии
+        id: version
+        run: |
+          TAG="${{ github.event.inputs.version }}"
+          if [ -z "$TAG" ]; then
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              TAG="${GITHUB_REF_NAME}"
+            else
+              TAG="v0.0.0-$(date -u +%Y%m%d)"
+            fi
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "zip=ai-marketer-$TAG.zip" >> "$GITHUB_OUTPUT"
+          echo "Собираю релиз $TAG"
+
+      - name: Сборка ZIP
+        run: |
+          ZIP="${{ steps.version.outputs.zip }}"
+          zip -r "$ZIP" . \
+            -x ".git" ".git/*" "*/.git" "*/.git/*" \
+               "*.gitmodules" \
+               "node_modules/*" "*/node_modules/*" \
+               "__pycache__/*" "*/__pycache__/*" "*.pyc" "*.pyo" \
+               ".venv/*" "*/.venv/*" "venv/*" "*/venv/*" \
+               "*.egg-info/*" \
+               "dist/*" "*/dist/*" "release/*" "*.zip" "*.tar.gz" \
+               "secrets.env" ".env" "*/.env" "*.pem" "*.key" \
+               "logs/*" "*.log" "*.sqlite*" "backups/*" \
+               ".pytest_cache/*" "*/.pytest_cache/*" ".*_cache/*" \
+               ".idea/*" ".vscode/*" ".DS_Store" "*/.DS_Store" "*.swp"
+          unzip -l "$ZIP" | tail -n 3
+          ls -lh "$ZIP"
+
+      - name: Защита от случайной утечки секретов
+        run: |
+          ZIP="${{ steps.version.outputs.zip }}"
+          if unzip -l "$ZIP" | grep -E "(^| )secrets\.env$|\.env$|\.pem$|\.key$"; then
+            echo "::error::В архив попали файлы секретов — релиз остановлен"
+            exit 1
+          fi
+          echo "✅ В архиве нет файлов с секретами"
+
+      - name: Контрольная сумма
+        run: sha256sum "${{ steps.version.outputs.zip }}" > "${{ steps.version.outputs.zip }}.sha256"
+
+      - name: Публикация релиза
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "AI Маркетолог ${{ steps.version.outputs.tag }}"
+          generate_release_notes: true
+          files: |
+            ${{ steps.version.outputs.zip }}
+            ${{ steps.version.outputs.zip }}.sha256
+          body: |
+            # 🤖 AI Маркетолог ${{ steps.version.outputs.tag }}
+
+            Управление Яндекс.Директом из Telegram: бот присылает отчёты,
+            Mini App считает гипотезы, находит слив бюджета на ботов и
+            предлагает конкретные действия в рублях.
+
+            ## 🚀 Установка за 5 шагов
+
+            1. **Скачайте** архив `${{ steps.version.outputs.zip }}` выше и распакуйте в папку без кириллицы в пути.
+            2. **Установите Docker Desktop** (Windows/macOS) или Docker Engine + Compose (Linux), если ещё не установлен: https://www.docker.com/products/docker-desktop
+            3. **Запустите `start.bat`** (Windows — двойной клик) или **`./start.sh`** (Linux/macOS). Скрипт сам проверит Docker, создаст `secrets.env` и откроет его.
+            4. **Заполните `secrets.env`**: `BOT_TOKEN` от @BotFather, `OPENROUTER_API_KEY` с https://openrouter.ai/keys, `WEBAPP_URL` (HTTPS-адрес). Ключ шифрования создастся автоматически.
+            5. **Запустите `start.bat` ещё раз** — через 3–5 минут проект поднимется: API на http://localhost:8000/docs, WebApp на http://localhost:3000.
+
+            ## Управление
+
+            | Команда | Действие |
+            |---|---|
+            | `start.bat` / `./start.sh` | запуск проекта |
+            | `stop.bat` / `./stop.sh` | остановка (данные сохраняются) |
+            | `logs.bat` / `./logs.sh` | логи всех сервисов |
+            | `update.bat` / `./update.sh` | обновление и пересборка |
+
+            ## Требования
+
+            - Docker Desktop 4.x / Docker Engine 24+ с Compose v2
+            - 2 ГБ оперативной памяти, 3 ГБ свободного места
+            - Токен бота, ключ OpenRouter, HTTPS-адрес для WebApp
+
+            ## Проверка целостности (необязательно)
+
+            ```bash
+            sha256sum -c ${{ steps.version.outputs.zip }}.sha256
+            ```
+
+            Все ключи хранятся только в `secrets.env` на вашей машине и никуда не отправляются.
+            Токены Яндекс.Директа и Метрики шифруются перед записью в базу.
