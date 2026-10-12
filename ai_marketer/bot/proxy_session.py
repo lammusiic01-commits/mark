@@ -48,6 +48,15 @@ def build_api_server(proxy_url: Optional[str] = None) -> TelegramAPIServer:
         raise ProxyConfigurationError(
             f"TELEGRAM_PROXY_URL должен начинаться с https:// (сейчас: {raw[:20]}…)",
         )
+    if raw.startswith("http://"):
+        # Telegram отвечает только по HTTPS. Единственное исключение — проверка
+        # бота на локальной заглушке Bot API в режиме разработки.
+        if settings.ENV != "development":
+            raise ProxyConfigurationError(
+                "TELEGRAM_PROXY_URL без HTTPS: Telegram доступен только по защищённому адресу. "
+                "В режиме разработки http:// разрешён для локальной заглушки Bot API.",
+            )
+        log.warning("Прокси Telegram по http — допустимо только для локальной проверки", proxy=raw)
 
     return TelegramAPIServer(
         base=f"{raw}/bot{{token}}/{{method}}",

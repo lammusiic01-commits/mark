@@ -1,0 +1,8 @@
+# Порядок переносов строк — по назначению файла.
+# .bat запускается cmd.exe в Windows: без CRLF команды goto и блоки в скобках
+# разбираются неверно, поэтому git выдаёт эти файлы с CRLF при любом клоне.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.sh  text eol=lf
+*.py  text eol=lf
+Dockerfile text eol=lf

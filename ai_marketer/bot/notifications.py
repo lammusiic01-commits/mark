@@ -24,7 +24,7 @@ from bot.keyboards import KIND_ICONS, back_to_app_keyboard
 from core.database import session_scope
 from core.logger import get_logger
 from core.models import User
-from core.redis_client import pop_notification, push_notification, queue_size
+from core.redis_client import push_notification, queue_size, take_notification
 
 log = get_logger(__name__)
 
@@ -88,11 +88,31 @@ async def send_payload(bot: Bot, payload: dict[str, Any]) -> bool:
 
 
 async def run_consumer(bot: Bot, stop_event: asyncio.Event, poll_timeout: int = 5) -> None:
-    """Бесконечный цикл разбора очереди. Останавливается по stop_event."""
+    """Бесконечный цикл разбора очереди. Останавливается по stop_event.
+
+    Если Redis недоступен, цикл ждёт с нарастающей паузой (1, 2, 4… до 30
+    секунд) и возвращается к обычному режиму, как только очередь ответила.
+    Без этого пауза берётся из BRPOP, а при лежащем Redis запросы падают
+    мгновенно — бот забивал бы лог тысячами строк в секунду.
+    """
     log.info("Слушаю очередь уведомлений")
+    backoff = 1.0
     while not stop_event.is_set():
         try:
-            payload = await pop_notification(timeout_seconds=poll_timeout)
+            # Отдаём управление событийному циклу: без этого итерации без
+            # ввода-вывода не дают хода другим задачам и сторожу остановки.
+            await asyncio.sleep(0)
+            payload, redis_ok = await take_notification(timeout_seconds=poll_timeout)
+            if not redis_ok:
+                if backoff == 1.0:
+                    log.warning("Очередь уведомлений недоступна — жду восстановления Redis")
+                if await _sleep_or_stop(stop_event, backoff):
+                    break
+                backoff = min(backoff * 2, 30.0)
+                continue
+            if backoff != 1.0:
+                log.info("Очередь уведомлений снова доступна")
+                backoff = 1.0
             if payload is None:
                 continue
             await send_payload(bot, payload)
@@ -101,7 +121,17 @@ async def run_consumer(bot: Bot, stop_event: asyncio.Event, poll_timeout: int = 
             raise
         except Exception as error:  # noqa: BLE001 — цикл не должен умирать
             log.error("Ошибка в разборе очереди уведомлений", error=str(error))
-            await asyncio.sleep(3)
+            if await _sleep_or_stop(stop_event, 3):
+                break
+
+
+async def _sleep_or_stop(stop_event: asyncio.Event, seconds: float) -> bool:
+    """Ждёт паузу, но просыпается сразу при остановке. True — пора выходить."""
+    try:
+        await asyncio.wait_for(stop_event.wait(), timeout=seconds)
+        return True
+    except asyncio.TimeoutError:
+        return False
 
 
 async def stats() -> dict[str, int]:

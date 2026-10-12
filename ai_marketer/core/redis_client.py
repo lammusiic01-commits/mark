@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,6 +37,20 @@ CACHE_METRIKA = "cache:metrika"
 CACHE_MARKET = "cache:market"
 
 _client: "Redis | None" = None  # type: ignore[valid-type]
+
+# Когда Redis лежит, попытки идут каждую секунду: без этого лог превращается
+# в бесконечную простыню одинаковых предупреждений.
+_WARN_INTERVAL_SECONDS = 60.0
+_last_warn: dict[str, float] = {}
+
+
+def _warn_throttled(key: str, message: str, **fields: Any) -> None:
+    """Пишет предупреждение, но не чаще раза в минуту на один и тот же повод."""
+    now = time.monotonic()
+    if now - _last_warn.get(key, float("-inf")) < _WARN_INTERVAL_SECONDS:
+        return
+    _last_warn[key] = now
+    log.warning(message, **fields)
 
 
 def get_client() -> "Redis | None":  # type: ignore[valid-type]
@@ -76,7 +91,7 @@ async def ping() -> bool:
         await client.ping()
         return True
     except Exception as error:  # noqa: BLE001
-        log.warning("Redis недоступен", error=str(error))
+        _warn_throttled("ping", "Redis недоступен", error=str(error))
         return False
 
 
@@ -170,29 +185,42 @@ async def push_notification(
         log.info("Уведомление поставлено в очередь", tg_id=tg_id, kind=kind)
         return True
     except Exception as error:  # noqa: BLE001
-        log.warning("Не удалось поставить уведомление в очередь", tg_id=tg_id, error=str(error))
+        _warn_throttled("push", "Не удалось поставить уведомление в очередь", tg_id=tg_id, error=str(error))
         return False
 
 
-async def pop_notification(timeout_seconds: int = 5) -> dict[str, Any] | None:
-    """Ждёт уведомление из очереди. None — очередь пуста или Redis недоступен."""
+async def take_notification(timeout_seconds: int = 5) -> tuple[dict[str, Any] | None, bool]:
+    """Ждёт уведомление и сообщает, ответил ли Redis.
+
+    Возвращает (payload, redis_ok):
+      • (данные, True)  — уведомление получено;
+      • (None,   True)  — очередь пуста, Redis работает;
+      • (None,  False)  — Redis недоступен: потребителю нужно выждать паузу,
+        иначе цикл будет молотить вхолостую.
+    """
     client = get_client()
     if client is None:
-        return None
+        return None, False
     try:
         item = await client.brpop(NOTIFICATIONS_QUEUE, timeout=timeout_seconds)
     except Exception as error:  # noqa: BLE001 — сеть, таймауты, остановка Redis
-        log.warning("Очередь уведомлений недоступна", error=str(error))
-        return None
+        _warn_throttled("pop", "Очередь уведомлений недоступна", error=str(error))
+        return None, False
     if not item:
-        return None
+        return None, True
     _, raw = item
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
         log.warning("В очереди уведомлений битая запись — пропускаю")
-        return None
-    return data if isinstance(data, dict) else None
+        return None, True
+    return (data, True) if isinstance(data, dict) else (None, True)
+
+
+async def pop_notification(timeout_seconds: int = 5) -> dict[str, Any] | None:
+    """Упрощённый вид take_notification: только данные уведомления."""
+    payload, _ = await take_notification(timeout_seconds=timeout_seconds)
+    return payload
 
 
 async def queue_size() -> int:
@@ -218,6 +246,7 @@ __all__ = [
     "ping",
     "pop_notification",
     "push_notification",
+    "take_notification",
     "queue_size",
     "set_json",
     "user_cache_key",

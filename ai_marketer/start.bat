@@ -343,7 +343,7 @@ rem ─── GenerateKey: генерирует ключ Fernet в NEWKEY ──
 :GenerateKey
 setlocal EnableDelayedExpansion
 set "KEY="
-for /f "tokens=*" %%K in ('powershell -NoProfile -Command "$b=New-Object byte[] 32; (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); [Convert]::ToBase64String($b).Replace('+','-').Replace('/','_')" 2^>nul') do set "KEY=%%K"
+for /f "tokens=*" %%K in ('powershell -NoProfile -Command "$b=New-Object byte[] 32; ([System.Security.Cryptography.RandomNumberGenerator]::Create()).GetBytes($b); [Convert]::ToBase64String($b).Replace('+','-').Replace('/','_')" 2^>nul') do set "KEY=%%K"
 if not defined KEY (
     where python >nul 2>&1
     if not errorlevel 1 (

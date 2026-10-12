@@ -102,6 +102,13 @@ async def main() -> int:
         log.error("База данных недоступна — бот не сможет создавать пользователей")
         return 1
 
+    if settings.ENV == "development":
+        # Локальный запуск без Docker: таблиц ещё может не быть, поэтому
+        # создаём схему сами. В боевом режиме это делает alembic в start-скрипте.
+        from core.database import create_all
+
+        await create_all()
+
     if not await redis_ping():
         log.warning("Redis недоступен — уведомления из очереди работать не будут")
 

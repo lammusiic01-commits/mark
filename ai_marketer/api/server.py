@@ -27,7 +27,7 @@ from core.database import dispose, ping as db_ping, wait_for_database
 from core.logger import configure_logging, get_logger
 from core.security import get_secret_box
 
-VERSION = "0.1.0"  # версия фундамента; на финальном этапе — 1.0.0
+VERSION = "1.0.1"  # версия продукта: совпадает с тегом релиза
 STARTED_AT = time.time()
 WEBAPP_DIST = Path(__file__).resolve().parent.parent / "webapp" / "dist"
 
