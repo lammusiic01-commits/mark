@@ -324,7 +324,9 @@ async def _http_checks() -> None:
         check("рынок сравнивает с вашими цифрами", "your_cpc_rub" in analysis)
         check("сообщение не содержит «None»", "None" not in market.json()["message"], market.json()["message"])
 
-        site = await client.post("/api/reports/site", headers=headers)
+        # Адрес сайта берём заведомо недоступный — закрытый порт на локальной машине.
+        # Так проверка одинаково проходит и с интернетом, и без него.
+        site = await _post_with_profile(client, headers, "/api/reports/site", 1800, site_url="http://127.0.0.1:9/")
         check(
             "аудит сайта не падает на недоступном сайте",
             site.status_code in {400, 502} and len(site.json().get("detail", "")) > 10,
