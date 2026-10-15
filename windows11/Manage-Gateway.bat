@@ -190,13 +190,20 @@ echo "TENDA_JSON_END"
 function Restore-NormalInternetNow {
     Write-Host "`n==> Восстановление стандартного интернета и DNS на сетевой карте ПК..." -ForegroundColor Cyan
     Get-Process -Name "sing-box" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    & reg.exe add "HKLM\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" /v IPEnableRouter /t REG_DWORD /d 0 /f 2>&1 | Out-Null
+    & reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f 2>&1 | Out-Null
+    & sc.exe stop RemoteAccess 2>&1 | Out-Null
+    & sc.exe config RemoteAccess start= disabled 2>&1 | Out-Null
+    & netsh.exe int ipv4 set global forwarding=disabled 2>&1 | Out-Null
     & netsh.exe interface ip set address "Ethernet" dhcp 2>&1 | Out-Null
     & netsh.exe interface ip set dns "Ethernet" dhcp 2>&1 | Out-Null
     Get-NetAdapter | Where-Object { $_.Status -eq "Up" } | ForEach-Object {
         & netsh.exe interface ip set address "$($_.Name)" dhcp 2>&1 | Out-Null
         & netsh.exe interface ip set dns "$($_.Name)" dhcp 2>&1 | Out-Null
     }
-    & ipconfig.exe /flushdns | Out-Null
+    & ipconfig.exe /release 2>&1 | Out-Null
+    & ipconfig.exe /renew 2>&1 | Out-Null
+    & ipconfig.exe /flushdns 2>&1 | Out-Null
     Write-Host "  [OK] Стандартный интернет по DHCP полностью восстановлен!" -ForegroundColor Green
 }
 
