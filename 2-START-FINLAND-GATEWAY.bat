@@ -1,12 +1,12 @@
 @echo off
-title Tenda TX2 & OneDash Finland - Windows 11 Gateway Manager
+title Finland VPS & Tenda TX2 - Windows 11 Selective Gateway
 net session >nul 2>&1
 if %errorLevel% neq 0 (
     powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
     exit /b
 )
 
-if not exist "%~dp0core\Gateway-Manager.ps1" (
+if not exist "%~dp0core\Finland-Gateway.ps1" (
     echo ======================================================================
     echo   PLEASE EXTRACT THE ZIP ARCHIVE FIRST!
     echo   Right-click the downloaded .zip file and click "Extract All..."
@@ -16,4 +16,4 @@ if not exist "%~dp0core\Gateway-Manager.ps1" (
 )
 
 cd /d "%~dp0"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0core\Gateway-Manager.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0core\Finland-Gateway.ps1"

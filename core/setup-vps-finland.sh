@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# ==============================================================================
-# Серверный авто-установщик для VPS OneDash (Хельсинки, Финляндия, Debian 12)
-# Настраивает:
-#   1. Защиту ОЗУ (1 ГБ Swap для тарифа 299 руб/мес)
-#   2. Алгоритм Google TCP BBR + FQ для минимального пинга до РФ
-#   3. Сервер Sing-box (VLESS + XTLS-Vision + Reality, маскировка под dl.google.com)
-#   4. Готовую ссылку vless:// (для Happ / телефонов) и JSON-ключи для ПК Windows 11
-# ==============================================================================
-
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
@@ -69,10 +60,9 @@ else
 fi
 
 SERVER_IP=$(curl -4 -fsSL --max-time 5 https://api.ipify.org || curl -4 -fsSL --max-time 5 https://ifconfig.me || hostname -I | awk '{print $1}')
-VLESS_URI="vless://${UUID}@${SERVER_IP}:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${SNI_DOMAIN}&fp=chrome&pbk=${PUBLIC_KEY}&sid=${SHORT_ID}&type=tcp#Finland-Helsinki-OneDash"
 
 cat << EOF > "$CRED_FILE"
-{"host":"${SERVER_IP}","port":443,"uuid":"${UUID}","public_key":"${PUBLIC_KEY}","short_id":"${SHORT_ID}","sni":"${SNI_DOMAIN}","private_key":"${PRIVATE_KEY}","vless_uri":"${VLESS_URI}"}
+{"host":"${SERVER_IP}","port":443,"uuid":"${UUID}","public_key":"${PUBLIC_KEY}","short_id":"${SHORT_ID}","sni":"${SNI_DOMAIN}","private_key":"${PRIVATE_KEY}"}
 EOF
 chmod 600 "$CRED_FILE"
 
