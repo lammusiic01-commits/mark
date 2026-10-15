@@ -14,6 +14,7 @@ echo.
 echo [1/7] Stopping any background sing-box tasks and processes...
 schtasks /Delete /TN "TendaSmartGateway-SingBox" /F >nul 2>&1
 schtasks /Delete /TN "TendaSmartGateway-WebUI" /F >nul 2>&1
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "TendaFinlandGateway" /f >nul 2>&1
 taskkill /F /IM sing-box.exe >nul 2>&1
 
 echo [2/7] Disabling Windows Router Mode (IPEnableRouter = 0) and RemoteAccess...
@@ -25,7 +26,7 @@ echo [3/7] Disabling IPv4 Forwarding on all network adapters (fixes Happ VPN)...
 netsh interface ipv4 set global forwarding=disabled >nul 2>&1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Get-NetIPInterface -ErrorAction SilentlyContinue | Set-NetIPInterface -Forwarding Disabled -ErrorAction SilentlyContinue" >nul 2>&1
 
-echo [4/7] Disabling System Proxy settings...
+echo [4/7] Disabling System Proxy settings and notifying browsers...
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 0 /f >nul 2>&1
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v AutoConfigURL /f >nul 2>&1
 netsh winhttp reset proxy >nul 2>&1
@@ -43,6 +44,7 @@ ipconfig /flushdns >nul 2>&1
 
 echo [7/7] Removing temporary firewall rules...
 netsh advfirewall firewall delete rule name="Tenda Gateway LAN Allow" >nul 2>&1
+netsh advfirewall firewall delete rule name="Block-Browser-QUIC-UDP443" >nul 2>&1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Remove-NetFirewallRule -DisplayGroup 'TendaSmartGateway' -ErrorAction SilentlyContinue" >nul 2>&1
 
 echo.

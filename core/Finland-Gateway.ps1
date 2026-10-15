@@ -15,27 +15,35 @@ $BinDir = Join-Path $InstallDir "bin"
 $CfgDir = Join-Path $InstallDir "configs"
 $SingBoxExe = Join-Path $BinDir "sing-box.exe"
 $SingBoxCfgPath = Join-Path $CfgDir "singbox_finland.json"
+$SingBoxLogPath = "C:/TendaGateway/singbox.log"
 $VpsJsonPath = Join-Path $CfgDir "vps_credentials.json"
 $SingBoxVersion = "1.10.7"
 
 New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
 New-Item -ItemType Directory -Path $CfgDir -Force | Out-Null
 
-# Список всех российских доменных зон и платформ, которые ВСЕГДА идут НАПРЯМУЮ (и на ПК, и по Wi-Fi)
-$RuDirectSuffixes = @(
-    ".ru", ".xn--p1ai", ".su", ".by",
-    "ya.ru", "yandex.ru", "yandex.net", "yandex.com", "yastatic.net",
-    "vk.com", "vk.ru", "userapi.com", "vkuseraudio.net", "vkuservideo.net",
-    "sberbank.ru", "sber.ru", "tbank.ru", "tinkoff.ru", "vtb.ru", "alfabank.ru",
-    "gosuslugi.ru", "mos.ru", "nalog.ru",
-    "ozon.ru", "ozone.ru", "wildberries.ru", "wb.ru", "avito.ru",
-    "mail.ru", "imgsmail.ru", "ok.ru", "mycdn.me",
-    "dzen.ru", "kinopoisk.ru", "rutube.ru", "ivi.ru", "okko.tv",
-    "2gis.ru", "hh.ru", "pochta.ru", "rzd.ru", "gismeteo.ru", "kp.ru", "rbc.ru", "lenta.ru"
-)
-
-# Строка исключений прокси для Windows 11 (гарантирует, что все сайты РФ открываются напрямую даже мимо локального порта)
+# Список исключений для прокси Windows 11: ВСЕ сайты РФ идут 100% напрямую мимо прокси!
 $WinProxyBypassList = "localhost;127.*;10.*;172.16.*;192.168.*;*.ru;*.xn--p1ai;*.su;*.by;ya.ru;*.yandex.ru;*.yandex.net;*.yastatic.net;*.vk.com;*.userapi.com;*.sberbank.ru;*.tbank.ru;*.tinkoff.ru;*.gosuslugi.ru;*.ozon.ru;*.wildberries.ru;*.avito.ru;*.mail.ru;*.ok.ru;*.dzen.ru;*.kinopoisk.ru;*.rutube.ru;<local>"
+
+function Refresh-WinInetProxy {
+    try {
+        if (-not ("WinInetHelper" -as [type])) {
+            Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class WinInetHelper {
+    [DllImport("wininet.dll", SetLastError = true)]
+    public static extern bool InternetSetOption(IntPtr hInternet, int dwOption, IntPtr lpBuffer, int lpdwBufferLength);
+    public static void Refresh() {
+        InternetSetOption(IntPtr.Zero, 39, IntPtr.Zero, 0);
+        InternetSetOption(IntPtr.Zero, 37, IntPtr.Zero, 0);
+    }
+}
+"@ -ErrorAction SilentlyContinue
+        }
+        [WinInetHelper]::Refresh()
+    } catch {}
+}
 
 function Get-LocalLanIP {
     $ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
@@ -46,102 +54,197 @@ function Get-LocalLanIP {
 }
 
 function Build-FinlandOnlyForeignConfig([hashtable]$Vps) {
-    # ВАЖНО:
-    # 1. НЕ используется драйвер WinTun (type: tun отсутствует), поэтому Happ VPN работает свободно по вашему решению!
-    # 2. Все сайты РФ (.ru, .рф, банки, Госуслуги, Яндекс, ВК, Озон) идут СТРОГО НАПРЯМУЮ (outbound: direct).
-    # 3. ВСЕ зарубежные ресурсы (final: vless-finland) идут через ваш VPS в Финляндии (91.108.239.5).
-    # 4. Порт 2080 открыт на 0.0.0.0:2080, поэтому работает одновременно и на этом ПК, и для всех устройств по Wi-Fi!
-    $cfg = [ordered]@{
-        log = @{ level = "warn"; timestamp = $true }
-        dns = [ordered]@{
-            servers = @(
-                @{ tag = "dns-finland"; address = "https://1.1.1.1/dns-query"; detour = "vless-finland" },
-                @{ tag = "dns-direct-ru"; address = "77.88.8.8"; detour = "direct" }
-            )
-            rules = @(
-                @{ outbound = "any"; server = "dns-direct-ru" },
-                @{ domain_suffix = $RuDirectSuffixes; server = "dns-direct-ru" }
-            )
-            final = "dns-finland"
-            strategy = "ipv4_only"
-            independent_cache = $true
-        }
-        inbounds = @(
-            [ordered]@{
-                type = "mixed"
-                tag = "shared-pc-and-wifi-in"
-                listen = "0.0.0.0"
-                listen_port = 2080
-                sniff = $true
-                sniff_override_destination = $true
-                set_system_proxy = $false
-            }
-        )
-        outbounds = @(
-            [ordered]@{
-                type = "vless"
-                tag = "vless-finland"
-                server = $Vps.host
-                server_port = [int]$Vps.port
-                uuid = $Vps.uuid
-                flow = "xtls-rprx-vision"
-                packet_encoding = "xudp"
-                tcp_fast_open = $true
-                tls = [ordered]@{
-                    enabled = $true
-                    server_name = $Vps.sni
-                    utls = @{ enabled = $true; fingerprint = "chrome" }
-                    reality = @{
-                        enabled = $true
-                        public_key = $Vps.public_key
-                        short_id = $Vps.short_id
-                    }
-                }
-            },
-            @{ type = "direct"; tag = "direct" },
-            @{ type = "block"; tag = "block" },
-            @{ type = "dns"; tag = "dns-out" }
-        )
-        route = [ordered]@{
-            auto_detect_interface = $true
-            # ВСЕ ЗАРУБЕЖНЫЕ РЕСУРСЫ ИДУТ ЧЕРЕЗ СЕРВЕР В ФИНЛЯНДИИ:
-            final = "vless-finland"
-            rules = @(
-                @{ ip_cidr = @("$($Vps.host)/32"); outbound = "direct" },
-                @{ protocol = "dns"; outbound = "dns-out" },
-                @{ ip_is_private = $true; outbound = "direct" },
-                # ВСЕ САЙТЫ РФ ИДУТ СТРОГО НАПРЯМУЮ ЧЕРЕЗ ВАШЕГО ПРОВАЙДЕРА:
-                @{ domain_suffix = $RuDirectSuffixes; outbound = "direct" },
-                # Блокировка UDP QUIC для YouTube/Instagram ускоряет 4K видео по TCP BBR:
-                @{
-                    protocol = "quic"
-                    port = 443
-                    domain_suffix = @("youtube.com", "googlevideo.com", "ytimg.com", "instagram.com", "cdninstagram.com")
-                    outbound = "block"
-                }
-            )
-        }
+    # Литеральный JSON-шаблон (без багов сериализации массивов PowerShell!)
+    $HostIp = $Vps.host
+    $PortNum = [int]$Vps.port
+    $UuidStr = $Vps.uuid
+    $SniStr = $Vps.sni
+    $PubKeyStr = $Vps.public_key
+    $ShortIdStr = $Vps.short_id
+
+    $JsonContent = @"
+{
+  "log": {
+    "level": "info",
+    "output": "$SingBoxLogPath",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "dns-finland",
+        "address": "https://1.1.1.1/dns-query",
+        "detour": "vless-finland"
+      },
+      {
+        "tag": "dns-direct-ru",
+        "address": "77.88.8.8",
+        "detour": "direct"
+      }
+    ],
+    "rules": [
+      {
+        "outbound": "any",
+        "server": "dns-direct-ru"
+      },
+      {
+        "domain_suffix": [
+          ".ru",
+          ".xn--p1ai",
+          ".su",
+          ".by",
+          "ya.ru",
+          "yandex.ru",
+          "yandex.net",
+          "yastatic.net",
+          "vk.com",
+          "userapi.com",
+          "sberbank.ru",
+          "tbank.ru",
+          "tinkoff.ru",
+          "gosuslugi.ru",
+          "ozon.ru",
+          "wildberries.ru",
+          "avito.ru",
+          "mail.ru",
+          "dzen.ru",
+          "kinopoisk.ru",
+          "rutube.ru"
+        ],
+        "server": "dns-direct-ru"
+      }
+    ],
+    "final": "dns-finland",
+    "strategy": "ipv4_only",
+    "independent_cache": true
+  },
+  "inbounds": [
+    {
+      "type": "mixed",
+      "tag": "shared-pc-and-wifi-in",
+      "listen": "0.0.0.0",
+      "listen_port": 2080,
+      "sniff": true,
+      "sniff_override_destination": true,
+      "set_system_proxy": false
     }
-    $jsonText = $cfg | ConvertTo-Json -Depth 15
-    [System.IO.File]::WriteAllText($SingBoxCfgPath, $jsonText, (New-Object System.Text.UTF8Encoding($false)))
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-finland",
+      "server": "$HostIp",
+      "server_port": $PortNum,
+      "uuid": "$UuidStr",
+      "flow": "xtls-rprx-vision",
+      "packet_encoding": "xudp",
+      "tcp_fast_open": true,
+      "tls": {
+        "enabled": true,
+        "server_name": "$SniStr",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "$PubKeyStr",
+          "short_id": "$ShortIdStr"
+        }
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    },
+    {
+      "type": "dns",
+      "tag": "dns-out"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "vless-finland",
+    "rules": [
+      {
+        "ip_cidr": [
+          "$HostIp/32"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "protocol": "dns",
+        "outbound": "dns-out"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "domain_suffix": [
+          ".ru",
+          ".xn--p1ai",
+          ".su",
+          ".by",
+          "ya.ru",
+          "yandex.ru",
+          "yandex.net",
+          "yastatic.net",
+          "vk.com",
+          "userapi.com",
+          "sberbank.ru",
+          "tbank.ru",
+          "tinkoff.ru",
+          "gosuslugi.ru",
+          "ozon.ru",
+          "wildberries.ru",
+          "avito.ru",
+          "mail.ru",
+          "dzen.ru",
+          "kinopoisk.ru",
+          "rutube.ru"
+        ],
+        "outbound": "direct"
+      }
+    ]
+  }
+}
+"@
+    [System.IO.File]::WriteAllText($SingBoxCfgPath, $JsonContent, (New-Object System.Text.UTF8Encoding($false)))
 }
 
 function Enable-SafeSelectiveRoutingOnPC {
+    # 1. Блокируем браузерный UDP 443 (QUIC), чтобы Яндекс.Браузер и Chrome не шли в обход прокси напрямую к ТСПУ!
+    & netsh.exe advfirewall firewall delete rule name="Block-Browser-QUIC-UDP443" 2>&1 | Out-Null
+    & netsh.exe advfirewall firewall add rule name="Block-Browser-QUIC-UDP443" dir=out action=block protocol=UDP remoteport=443 2>&1 | Out-Null
+
+    # 2. Включаем прокси Windows с прямым обходом для всех сайтов РФ (.ru / .рф / ya.ru / банки / Госуслуги)
     & reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyServer /t REG_SZ /d "127.0.0.1:2080" /f 2>&1 | Out-Null
     & reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyOverride /t REG_SZ /d "$WinProxyBypassList" /f 2>&1 | Out-Null
     & reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" /v ProxyEnable /t REG_DWORD /d 1 /f 2>&1 | Out-Null
+
+    # 3. Мгновенно уведомляем открытые окна Яндекс.Браузера / Chrome / Edge без их перезапуска!
+    Refresh-WinInetProxy
 }
 
 function Start-FinlandGatewayCore([hashtable]$VpsCreds) {
-    # 1. Сначала гарантируем, что базовый интернет Windows 11 и сетевая карта Ethernet в 100% заводском режиме DHCP (для работы Happ!)
     & (Join-Path $CoreDir "Restore-Internet.ps1")
 
-    Write-Host "`n==> [1/4] Сохранение конфигурации (РФ сайты -> напрямую, Зарубежные -> Финляндия $($VpsCreds.host))..." -ForegroundColor Cyan
+    # Синхронизация времени Windows 11 (обязательно для протокола VLESS-Reality!)
+    Write-Host "`n==> [1/5] Синхронизация точного времени Windows 11 для протокола Reality..." -ForegroundColor Cyan
+    & net.exe start w32time 2>&1 | Out-Null
+    & w32tm.exe /resync /force 2>&1 | Out-Null
+
+    Write-Host "`n==> [2/5] Сохранение конфигурации (РФ -> напрямую, Зарубежные -> Финляндия $($VpsCreds.host))..." -ForegroundColor Cyan
     $VpsCreds | ConvertTo-Json -Depth 5 | Set-Content -Path $VpsJsonPath -Encoding UTF8
     Build-FinlandOnlyForeignConfig -Vps $VpsCreds
-    Write-Host "  [OK] Конфигурация сохранена в $SingBoxCfgPath" -ForegroundColor Green
+    Write-Host "  [OK] Конфигурация сохранена (SNI: $($VpsCreds.sni))." -ForegroundColor Green
 
-    Write-Host "`n==> [2/4] Проверка и скачивание ядра Sing-box..." -ForegroundColor Cyan
+    Write-Host "`n==> [3/5] Проверка и скачивание ядра Sing-box..." -ForegroundColor Cyan
     if (-not (Test-Path $SingBoxExe)) {
         $ZipName = "sing-box-$SingBoxVersion-windows-amd64.zip"
         $OfficialUrl = "https://github.com/SagerNet/sing-box/releases/download/v$SingBoxVersion/$ZipName"
@@ -176,55 +279,73 @@ function Start-FinlandGatewayCore([hashtable]$VpsCreds) {
     }
     Write-Host "  [OK] Ядро Sing-box готово: $SingBoxExe" -ForegroundColor Green
 
-    Write-Host "`n==> [3/4] Открытие порта 2080 для домашнего Wi-Fi (роутер Tenda TX2) и запуск службы..." -ForegroundColor Cyan
+    Write-Host "`n==> [4/5] Запуск фонового процесса Sing-box и открытие порта 2080 для Wi-Fi..." -ForegroundColor Cyan
+    Remove-Item -Path "C:\TendaGateway\singbox.log" -Force -ErrorAction SilentlyContinue
     & netsh.exe advfirewall firewall delete rule name="Tenda Gateway LAN Allow" 2>&1 | Out-Null
     & netsh.exe advfirewall firewall add rule name="Tenda Gateway LAN Allow" dir=in action=allow protocol=TCP localport=2080 remoteip=192.168.0.0/24 2>&1 | Out-Null
 
-    & schtasks.exe /Delete /TN "TendaSmartGateway-SingBox" /F 2>&1 | Out-Null
-    & schtasks.exe /Create /TN "TendaSmartGateway-SingBox" /TR "`"$SingBoxExe`" run -c `"$SingBoxCfgPath`"" /SC ONLOGON /RU SYSTEM /RL HIGHEST /F 2>&1 | Out-Null
-    & schtasks.exe /Run /TN "TendaSmartGateway-SingBox" 2>&1 | Out-Null
-    Start-Sleep -Seconds 2
+    # Запускаем напрямую в текущей сессии и добавляем в автозагрузку пользователя
+    Start-Process -FilePath $SingBoxExe -ArgumentList "run -c `"$SingBoxCfgPath`"" -WorkingDirectory $InstallDir -WindowStyle Hidden
+    & reg.exe add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "TendaFinlandGateway" /t REG_SZ /d "`"$SingBoxExe`" run -c `"$SingBoxCfgPath`"" /f 2>&1 | Out-Null
+    Start-Sleep -Seconds 3
 
-    # Проверяем, что порт 2080 действительно поднялся, прежде чем включать маршрутизацию зарубежных сайтов!
-    $PortCheck = Test-NetConnection -ComputerName "127.0.0.1" -Port 2080 -WarningAction SilentlyContinue
-    if ($PortCheck.TcpTestSucceeded) {
-        Write-Host "`n==> [4/4] Включение разделения трафика (РФ - напрямую, Зарубежные - через Финляндию)..." -ForegroundColor Cyan
-        Enable-SafeSelectiveRoutingOnPC
-        $LanIp = Get-LocalLanIP
-        Write-Host ""
-        Write-Host "============================================================================" -ForegroundColor Green
-        Write-Host "  ГОТОВО! СЕРВЕР В ФИНЛЯНДИИ ($($VpsCreds.host)) РАБОТАЕТ!" -ForegroundColor Green
-        Write-Host "============================================================================" -ForegroundColor Green
-        Write-Host "  1. НА ЭТОМ КОМПЬЮТЕРЕ:" -ForegroundColor Cyan
-        Write-Host "     - Все сайты РФ (ya.ru, Сбербанк, Госуслуги, ВК, Озон, .ru/.рф) идут НАПРЯМУЮ!" -ForegroundColor Green
-        Write-Host "     - Все зарубежные ресурсы (YouTube, Instagram, TG, Discord) идут через Финляндию!" -ForegroundColor Green
-        Write-Host "     - Драйвер виртуальной сети свободен: VPN Happ включается и выключается по вашему решению!" -ForegroundColor Yellow
-        Write-Host ""
-        Write-Host "  2. НА ТЕЛЕФОНАХ И УСТРОЙСТВАХ ПО ДОМАШНЕМУ WI-FI (Tenda TX2):" -ForegroundColor Cyan
-        Write-Host "     В настройках вашей домашней сети Wi-Fi на телефоне укажите один раз:"
-        Write-Host "     - Настройка прокси: Вручную"
-        Write-Host "     - Сервер (Имя узла): $LanIp" -ForegroundColor Yellow
-        Write-Host "     - Порт: 2080" -ForegroundColor Yellow
-        Write-Host "     (На телефоне по Wi-Fi сайты РФ тоже пойдут напрямую, а зарубежные - через Финляндию!)"
-        Write-Host "============================================================================" -ForegroundColor Green
-    } else {
-        Write-Host "  [!] Не удалось запустить локальный порт 2080. Прямой интернет оставлен без изменений." -ForegroundColor Yellow
+    $Proc = Get-Process -Name "sing-box" -ErrorAction SilentlyContinue
+    if (-not $Proc) {
+        Write-Host "  [ОШИБКА] Процесс sing-box.exe не запустился! Лог ошибки:" -ForegroundColor Red
+        if (Test-Path "C:\TendaGateway\singbox.log") {
+            Get-Content "C:\TendaGateway\singbox.log" -Tail 15
+        }
+        return
     }
+
+    Write-Host "`n==> [5/5] Реальная сквозная проверка открытия YouTube, Twitch и Яндекса..." -ForegroundColor Cyan
+    $YtCode = & curl.exe -I -s -x "http://127.0.0.1:2080" -o NUL -w "%{http_code}" --max-time 10 "https://www.youtube.com"
+    $TwCode = & curl.exe -I -s -x "http://127.0.0.1:2080" -o NUL -w "%{http_code}" --max-time 10 "https://www.twitch.tv"
+    $YaCode = & curl.exe -I -s --noproxy "*" -o NUL -w "%{http_code}" --max-time 8 "https://ya.ru"
+
+    Write-Host "  - Тест YouTube через Финляндию : HTTP $YtCode" -ForegroundColor $(if ($YtCode -match "^(200|301|302)$") { "Green" } else { "Yellow" })
+    Write-Host "  - Тест Twitch через Финляндию  : HTTP $TwCode" -ForegroundColor $(if ($TwCode -match "^(200|301|302)$") { "Green" } else { "Yellow" })
+    Write-Host "  - Тест ya.ru (Прямой РФ)       : HTTP $YaCode" -ForegroundColor $(if ($YaCode -match "^(200|301|302)$") { "Green" } else { "Yellow" })
+
+    if (($YtCode -notmatch "^(200|301|302)$") -and ($TwCode -notmatch "^(200|301|302)$")) {
+        Write-Host "`n  [!] Внимание: Туннель до VPS $($VpsCreds.host) не пропустил тестовый запрос!" -ForegroundColor Red
+        Write-Host "  Прокси в браузере НЕ включен, чтобы не ломать интернет. Последние строки лога:" -ForegroundColor Yellow
+        if (Test-Path "C:\TendaGateway\singbox.log") {
+            Get-Content "C:\TendaGateway\singbox.log" -Tail 15
+        }
+        return
+    }
+
+    Enable-SafeSelectiveRoutingOnPC
+    $LanIp = Get-LocalLanIP
+    Write-Host ""
+    Write-Host "============================================================================" -ForegroundColor Green
+    Write-Host "  ПРОВЕРЕНО И ЗАПУЩЕНО! YOUTUBE И TWITCH ОТКРЫВАЮТСЯ ЧЕРЕЗ ФИНЛЯНДИЮ!" -ForegroundColor Green
+    Write-Host "============================================================================" -ForegroundColor Green
+    Write-Host "  1. НА ЭТОМ КОМПЬЮТЕРЕ:" -ForegroundColor Cyan
+    Write-Host "     - Все сайты РФ (ya.ru, Сбербанк, Госуслуги, ВК, Озон) идут НАПРЯМУЮ!" -ForegroundColor Green
+    Write-Host "     - Все зарубежные сайты (YouTube, Twitch, Instagram, TG, Discord) идут через Финляндию!" -ForegroundColor Green
+    Write-Host "     - VPN Happ свободен и включается/выключается только по вашему решению!" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  2. НА ТЕЛЕФОНАХ ПО ДОМАШНЕМУ WI-FI (Tenda TX2):" -ForegroundColor Cyan
+    Write-Host "     В настройках Wi-Fi на телефоне -> 'Прокси: Вручную' -> Сервер: $LanIp | Порт: 2080" -ForegroundColor Yellow
+    Write-Host "============================================================================" -ForegroundColor Green
 }
 
 function Connect-And-RunFinlandVps {
     Clear-Host
     Write-Host "============================================================================" -ForegroundColor Blue
-    Write-Host "  ПОДКЛЮЧЕНИЕ СЕРВЕРА В ФИНЛЯНДИИ (ХЕЛЬСИНКИ, DEBIAN 12)" -ForegroundColor Green
+    Write-Host "  ПОДКЛЮЧЕНИЕ И ОБНОВЛЕНИЕ СЕРВЕРА В ФИНЛЯНДИИ (ХЕЛЬСИНКИ, DEBIAN 12)" -ForegroundColor Green
     Write-Host "============================================================================" -ForegroundColor Blue
     Write-Host ""
 
+    # Проверяем, есть ли сохраненные ключи УЖЕ с новым SNI (www.microsoft.com)
     if (Test-Path $VpsJsonPath) {
         try {
             $Saved = Get-Content $VpsJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            if ($Saved.host -and $Saved.uuid -and $Saved.public_key) {
-                Write-Host "Найдены уже сохраненные ключи вашего VPS в Финляндии ($($Saved.host))!" -ForegroundColor Green
-                $UseSaved = Read-Host "Запустить сразу с ними без повторного ввода пароля SSH? [Y/n]"
+            if ($Saved.host -and $Saved.uuid -and $Saved.public_key -and ($Saved.sni -eq "www.microsoft.com")) {
+                Write-Host "Найдены актуальные ключи вашего VPS ($($Saved.host), SNI: www.microsoft.com)!" -ForegroundColor Green
+                $UseSaved = Read-Host "Запустить сразу без повторного ввода пароля SSH? [Y/n]"
                 if ($UseSaved -notmatch "^[nNнН]") {
                     Start-FinlandGatewayCore -VpsCreds @{
                         host       = $Saved.host
@@ -250,12 +371,12 @@ function Connect-And-RunFinlandVps {
     Write-Host "`n==> Подключение к root@$VpsIp (порт $SshPort, Хельсинки)..." -ForegroundColor Cyan
     Write-Host "  Введите пароль от root вашего VPS (правая кнопка мыши и Enter):" -ForegroundColor Yellow
 
+    # Передача скрипта через Base64 полностью исключает ошибку 'bash: line 1: #!/usr/bin/env: No such file or directory'!
     $BashFile = Join-Path $CoreDir "setup-vps-finland.sh"
     $LinuxScript = (Get-Content -Path $BashFile -Raw -Encoding UTF8) -replace "`r`n", "`n"
-    $TempSh = Join-Path $env:TEMP "setup_vps_finland.sh"
-    [System.IO.File]::WriteAllText($TempSh, $LinuxScript, (New-Object System.Text.UTF8Encoding($false)))
+    $B64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($LinuxScript))
 
-    $Captured = Get-Content -Raw $TempSh | ssh.exe -o StrictHostKeyChecking=accept-new -p $SshPort "root@$VpsIp" "tr -d '\r' | bash -s"
+    $Captured = ssh.exe -o StrictHostKeyChecking=accept-new -p $SshPort "root@$VpsIp" "echo '$B64' | base64 -d | tr -d '\r' > /tmp/setup_vps.sh && bash /tmp/setup_vps.sh"
     $FullText = ($Captured -join "`n")
 
     if ($FullText -match "TENDA_JSON_BEGIN\s*(\{[\s\S]*?\})\s*TENDA_JSON_END") {
@@ -269,7 +390,8 @@ function Connect-And-RunFinlandVps {
             sni        = $Parsed.sni
         }
     } else {
-        Write-Host "`n[!] Не удалось получить ответ от VPS. Проверьте пароль root или порт SSH." -ForegroundColor Yellow
+        Write-Host "`n[!] Не удалось получить ответ от VPS. Вывод сервера:" -ForegroundColor Yellow
+        Write-Host $FullText -ForegroundColor Gray
     }
 }
 
@@ -277,15 +399,24 @@ function Test-CurrentRouting {
     $LanIp = Get-LocalLanIP
     Write-Host ""
     Write-Host "============================================================================" -ForegroundColor Blue
-    Write-Host "  ДИАГНОСТИКА И СТАТУС РАБОТЫ" -ForegroundColor Green
+    Write-Host "  ДИАГНОСТИКА И РЕАЛЬНЫЙ ТЕСТ ОТКРЫТИЯ САЙТОВ" -ForegroundColor Green
     Write-Host "============================================================================" -ForegroundColor Blue
     $Proc = Get-Process -Name "sing-box" -ErrorAction SilentlyContinue
     if ($Proc) {
-        Write-Host "  [OK] Шлюз Финляндии запущен (PID: $($Proc.Id), локальный адрес для Wi-Fi: $LanIp`:2080)" -ForegroundColor Green
+        Write-Host "  [OK] Процесс sing-box запущен (PID: $($Proc.Id), локальный адрес для Wi-Fi: $LanIp`:2080)" -ForegroundColor Green
+        $YtCode = & curl.exe -I -s -x "http://127.0.0.1:2080" -o NUL -w "%{http_code}" --max-time 8 "https://www.youtube.com"
+        $TwCode = & curl.exe -I -s -x "http://127.0.0.1:2080" -o NUL -w "%{http_code}" --max-time 8 "https://www.twitch.tv"
+        $YaCode = & curl.exe -I -s --noproxy "*" -o NUL -w "%{http_code}" --max-time 8 "https://ya.ru"
+        Write-Host "  - YouTube через Финляндию : HTTP $YtCode" -ForegroundColor $(if ($YtCode -match "^(200|301|302)$") { "Green" } else { "Red" })
+        Write-Host "  - Twitch через Финляндию  : HTTP $TwCode" -ForegroundColor $(if ($TwCode -match "^(200|301|302)$") { "Green" } else { "Red" })
+        Write-Host "  - ya.ru напрямую (РФ)     : HTTP $YaCode" -ForegroundColor $(if ($YaCode -match "^(200|301|302)$") { "Green" } else { "Red" })
     } else {
         Write-Host "  [!] Шлюз Финляндии сейчас выключен (работает только прямой интернет)" -ForegroundColor Yellow
     }
-    Write-Host "  [OK] Сетевая карта Ethernet в штатном режиме DHCP (IP: $LanIp) - Happ VPN свободен" -ForegroundColor Green
+    if (Test-Path "C:\TendaGateway\singbox.log") {
+        Write-Host "`nПоследние записи лога (C:\TendaGateway\singbox.log):" -ForegroundColor Cyan
+        Get-Content "C:\TendaGateway\singbox.log" -Tail 10
+    }
 }
 
 function Show-WiFiGuide {
@@ -295,20 +426,13 @@ function Show-WiFiGuide {
     Write-Host "  НАСТРОЙКА ДОМАШНЕГО WI-FI (РОУТЕР TENDA TX2) ДЛЯ ТЕЛЕФОНОВ И УСТРОЙСТВ" -ForegroundColor Green
     Write-Host "============================================================================" -ForegroundColor Blue
     Write-Host ""
-    Write-Host "Шаг 1. Чтобы за вашим компьютером в роутере Tenda TX2 всегда был закреплен адрес $LanIp`:" -ForegroundColor Cyan
-    Write-Host "  - Зайдите в роутер http://192.168.0.1 -> 'Расширенные' -> 'Привязка IP и MAC' (Static IP Lease)"
-    Write-Host "  - Нажмите '+' возле вашего компьютера ($LanIp) и сохраните."
-    Write-Host ""
-    Write-Host "Шаг 2. На телефоне (iPhone / Android) в настройках вашей домашней сети Wi-Fi Tenda:" -ForegroundColor Cyan
+    Write-Host "На телефоне (iPhone / Android) в настройках вашей домашней сети Wi-Fi Tenda:" -ForegroundColor Cyan
     Write-Host "  - Нажмите значок (i) рядом с вашей сетью Wi-Fi -> 'Настройка прокси' -> 'Вручную'"
     Write-Host "  - Сервер (Имя узла): $LanIp" -ForegroundColor Yellow
     Write-Host "  - Порт: 2080" -ForegroundColor Yellow
     Write-Host "  - Нажмите 'Сохранить'."
     Write-Host ""
-    Write-Host "Результат на телефоне по Wi-Fi:" -ForegroundColor Green
-    Write-Host "  - Все российские сайты и приложения банков идут НАПРЯМУЮ через вашего провайдера РФ!"
-    Write-Host "  - Все зарубежные ресурсы (YouTube, Instagram, Telegram, ChatGPT) идут через ваш VPS в Финляндии!"
-    Write-Host "  - Когда вы выходите из дома (на мобильный интернет 4G/LTE), эта настройка Wi-Fi автоматически не используется."
+    Write-Host "На телефоне по Wi-Fi все сайты РФ пойдут напрямую, а зарубежные - через Финляндию!" -ForegroundColor Green
     Write-Host "============================================================================" -ForegroundColor Blue
 }
 
@@ -330,7 +454,7 @@ while ($true) {
     Write-Host "  [1] ВКЛЮЧИТЬ СЕРВЕР В ФИНЛЯНДИИ (РФ сайты - напрямую, Зарубежные - через Финляндию)" -ForegroundColor Yellow
     Write-Host "  [2] ВОССТАНОВИТЬ БАЗОВЫЕ НАСТРОЙКИ ИНТЕРНЕТА (Отключить шлюз / Сбросить сеть в стандарт)" -ForegroundColor Cyan
     Write-Host "  [3] КАК ПОДКЛЮЧИТЬ ТЕЛЕФОНЫ ПО WI-FI (Инструкция для Tenda TX2)"
-    Write-Host "  [4] ПРОВЕРИТЬ СТАТУС РАБОТЫ"
+    Write-Host "  [4] ПРОВЕРИТЬ СТАТУС И РЕАЛЬНЫЙ ТЕСТ YOUTUBE / TWITCH / YA.RU"
     Write-Host "  [0] Выход"
     Write-Host ""
     $Choice = (Read-Host "Введите номер пункта [0-4] и нажмите Enter").Trim()
