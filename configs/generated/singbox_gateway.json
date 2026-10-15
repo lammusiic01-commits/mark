@@ -1,0 +1,410 @@
+{
+  "log": {
+    "level": "warn",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {
+        "tag": "dns-remote-doh",
+        "address": "https://1.1.1.1/dns-query",
+        "detour": "proxy-auto"
+      },
+      {
+        "tag": "dns-direct-ru",
+        "address": "77.88.8.8",
+        "detour": "direct"
+      },
+      {
+        "tag": "dns-fakeip",
+        "address": "fakeip"
+      }
+    ],
+    "rules": [
+      {
+        "outbound": "any",
+        "server": "dns-direct-ru"
+      },
+      {
+        "domain_suffix": [
+          ".ru",
+          ".xn--p1ai",
+          ".su",
+          ".by"
+        ],
+        "server": "dns-direct-ru"
+      },
+      {
+        "query_type": [
+          "A",
+          "AAAA"
+        ],
+        "domain_suffix": [
+          "youtube.com",
+          "www.youtube.com",
+          "m.youtube.com",
+          "music.youtube.com",
+          "tv.youtube.com",
+          "youtu.be",
+          "googlevideo.com",
+          "ytimg.com",
+          "i.ytimg.com",
+          "i9.ytimg.com",
+          "s.ytimg.com",
+          "yt3.ggpht.com",
+          "yt4.ggpht.com",
+          "ggpht.com",
+          "youtubei.googleapis.com",
+          "youtubeembeddedplayer.googleapis.com",
+          "ytimg.l.google.com",
+          "youtube-ui.l.google.com",
+          "youtube-nocookie.com",
+          "widevine.com",
+          "jnn-pa.googleapis.com",
+          "telegram.org",
+          "www.telegram.org",
+          "core.telegram.org",
+          "web.telegram.org",
+          "webk.telegram.org",
+          "webz.telegram.org",
+          "desktop.telegram.org",
+          "macos.telegram.org",
+          "t.me",
+          "telegram.me",
+          "telegram.dog",
+          "telegra.ph",
+          "telesco.pe",
+          "cdn-telegram.org",
+          "comments.app",
+          "contest.com",
+          "fragment.com",
+          "quiz.directory",
+          "tdesktop.com",
+          "instagram.com",
+          "www.instagram.com",
+          "i.instagram.com",
+          "graph.instagram.com",
+          "cdninstagram.com",
+          "scontent.cdninstagram.com",
+          "threads.net",
+          "www.threads.net",
+          "facebook.com",
+          "www.facebook.com",
+          "m.facebook.com",
+          "fbcdn.net",
+          "fbsbx.com",
+          "fb.com",
+          "fb.me",
+          "tfbnw.net",
+          "meta.com",
+          "meta.ai",
+          "accountkit.com",
+          "discord.com",
+          "www.discord.com",
+          "discordapp.com",
+          "discordapp.net",
+          "discord.gg",
+          "discord.media",
+          "discordcdn.com",
+          "discord.dev",
+          "discord.new",
+          "discord.gift",
+          "discordstatus.com",
+          "dis.gd",
+          "openai.com",
+          "chatgpt.com",
+          "oaistatic.com",
+          "oaiusercontent.com",
+          "auth0.openai.com",
+          "anthropic.com",
+          "claude.ai",
+          "gemini.google.com",
+          "aistudio.google.com",
+          "bard.google.com",
+          "copilot.microsoft.com",
+          "midjourney.com",
+          "perplexity.ai",
+          "poe.com",
+          "x.com",
+          "twitter.com",
+          "twimg.com",
+          "t.co",
+          "spotify.com",
+          "scdn.co",
+          "spotifycdn.com",
+          "netflix.com",
+          "nflxvideo.net",
+          "nflximg.net",
+          "rutracker.org",
+          "rutracker.net",
+          "linkedin.com",
+          "licdn.com",
+          "canva.com",
+          "notion.so",
+          "medium.com",
+          "patreon.com"
+        ],
+        "server": "dns-fakeip",
+        "rewrite_ttl": 1
+      }
+    ],
+    "fakeip": {
+      "enabled": true,
+      "inet4_range": "198.18.0.0/15"
+    },
+    "final": "dns-direct-ru",
+    "strategy": "ipv4_only",
+    "independent_cache": true
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "inet4_address": "172.19.0.1/30",
+      "mtu": 1460,
+      "auto_route": true,
+      "strict_route": false,
+      "inet4_route_exclude_address": [
+        "192.168.0.0/16",
+        "10.0.0.0/8",
+        "172.16.0.0/12"
+      ],
+      "stack": "system",
+      "sniff": true,
+      "sniff_override_destination": true
+    },
+    {
+      "type": "mixed",
+      "tag": "mixed-in",
+      "listen": "0.0.0.0",
+      "listen_port": 2080,
+      "sniff": true
+    },
+    {
+      "type": "direct",
+      "tag": "dns-in",
+      "listen": "0.0.0.0",
+      "listen_port": 5353,
+      "override_address": "8.8.8.8",
+      "override_port": 53
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "urltest",
+      "tag": "proxy-auto",
+      "outbounds": [
+        "vless-primary"
+      ],
+      "url": "https://www.gstatic.com/generate_204",
+      "interval": "45s",
+      "tolerance": 35,
+      "idle_timeout": "15m"
+    },
+    {
+      "type": "vless",
+      "tag": "vless-primary",
+      "server": "203.0.113.10",
+      "server_port": 443,
+      "uuid": "7e9c4a12-6b2d-4f88-9a10-3e5c7d9b1f22",
+      "flow": "xtls-rprx-vision",
+      "packet_encoding": "xudp",
+      "tcp_fast_open": true,
+      "tls": {
+        "enabled": true,
+        "server_name": "dl.google.com",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "mN8vK2pQ9xR4tL7wY1zB5cF6hJ3kM0pS2uV8xZ4aE1g=",
+          "short_id": "a1b2c3d4e5f60718"
+        }
+      }
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    },
+    {
+      "type": "dns",
+      "tag": "dns-out"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "direct",
+    "rules": [
+      {
+        "protocol": "dns",
+        "outbound": "dns-out"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct"
+      },
+      {
+        "domain_suffix": [
+          ".ru",
+          ".xn--p1ai",
+          ".su",
+          ".gosuslugi.ru",
+          ".sberbank.ru",
+          ".tbank.ru",
+          ".yandex.ru",
+          ".vk.com",
+          ".ozon.ru",
+          ".wildberries.ru"
+        ],
+        "outbound": "direct"
+      },
+      {
+        "protocol": "quic",
+        "port": 443,
+        "domain_suffix": [
+          "youtube.com",
+          "googlevideo.com",
+          "ytimg.com",
+          "instagram.com",
+          "cdninstagram.com"
+        ],
+        "outbound": "block"
+      },
+      {
+        "domain_suffix": [
+          "youtube.com",
+          "www.youtube.com",
+          "m.youtube.com",
+          "music.youtube.com",
+          "tv.youtube.com",
+          "youtu.be",
+          "googlevideo.com",
+          "ytimg.com",
+          "i.ytimg.com",
+          "i9.ytimg.com",
+          "s.ytimg.com",
+          "yt3.ggpht.com",
+          "yt4.ggpht.com",
+          "ggpht.com",
+          "youtubei.googleapis.com",
+          "youtubeembeddedplayer.googleapis.com",
+          "ytimg.l.google.com",
+          "youtube-ui.l.google.com",
+          "youtube-nocookie.com",
+          "widevine.com",
+          "jnn-pa.googleapis.com",
+          "telegram.org",
+          "www.telegram.org",
+          "core.telegram.org",
+          "web.telegram.org",
+          "webk.telegram.org",
+          "webz.telegram.org",
+          "desktop.telegram.org",
+          "macos.telegram.org",
+          "t.me",
+          "telegram.me",
+          "telegram.dog",
+          "telegra.ph",
+          "telesco.pe",
+          "cdn-telegram.org",
+          "comments.app",
+          "contest.com",
+          "fragment.com",
+          "quiz.directory",
+          "tdesktop.com",
+          "instagram.com",
+          "www.instagram.com",
+          "i.instagram.com",
+          "graph.instagram.com",
+          "cdninstagram.com",
+          "scontent.cdninstagram.com",
+          "threads.net",
+          "www.threads.net",
+          "facebook.com",
+          "www.facebook.com",
+          "m.facebook.com",
+          "fbcdn.net",
+          "fbsbx.com",
+          "fb.com",
+          "fb.me",
+          "tfbnw.net",
+          "meta.com",
+          "meta.ai",
+          "accountkit.com",
+          "discord.com",
+          "www.discord.com",
+          "discordapp.com",
+          "discordapp.net",
+          "discord.gg",
+          "discord.media",
+          "discordcdn.com",
+          "discord.dev",
+          "discord.new",
+          "discord.gift",
+          "discordstatus.com",
+          "dis.gd",
+          "openai.com",
+          "chatgpt.com",
+          "oaistatic.com",
+          "oaiusercontent.com",
+          "auth0.openai.com",
+          "anthropic.com",
+          "claude.ai",
+          "gemini.google.com",
+          "aistudio.google.com",
+          "bard.google.com",
+          "copilot.microsoft.com",
+          "midjourney.com",
+          "perplexity.ai",
+          "poe.com",
+          "x.com",
+          "twitter.com",
+          "twimg.com",
+          "t.co",
+          "spotify.com",
+          "scdn.co",
+          "spotifycdn.com",
+          "netflix.com",
+          "nflxvideo.net",
+          "nflximg.net",
+          "rutracker.org",
+          "rutracker.net",
+          "linkedin.com",
+          "licdn.com",
+          "canva.com",
+          "notion.so",
+          "medium.com",
+          "patreon.com"
+        ],
+        "outbound": "proxy-auto"
+      },
+      {
+        "ip_cidr": [
+          "91.105.192.0/23",
+          "91.108.4.0/22",
+          "91.108.8.0/22",
+          "91.108.12.0/22",
+          "91.108.16.0/22",
+          "91.108.20.0/22",
+          "91.108.56.0/22",
+          "95.161.64.0/20",
+          "149.154.160.0/20",
+          "185.76.151.0/24",
+          "2001:b28:f23d::/48",
+          "2001:b28:f23f::/48",
+          "2001:67c:4e8::/48",
+          "2001:b28:f23c::/48",
+          "2a0a:f280::/32"
+        ],
+        "outbound": "proxy-auto"
+      }
+    ]
+  }
+}

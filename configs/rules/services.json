@@ -1,0 +1,99 @@
+{
+  "network": {
+    "tenda_router_ip": "192.168.0.1",
+    "gateway_ip": "192.168.0.2",
+    "lan_subnet": "192.168.0.0/24",
+    "dhcp_start": "192.168.0.50",
+    "dhcp_end": "192.168.0.240",
+    "lan_interface": "eth0",
+    "ru_dns_primary": "77.88.8.8",
+    "ru_dns_secondary": "77.88.8.1",
+    "proxy_doh": "https://1.1.1.1/dns-query",
+    "deployment_mode": "sidecar_gateway"
+  },
+  "vps": {
+    "primary": {
+      "name": "OneDash Helsinki (Finland Debian 12)",
+      "host": "203.0.113.10",
+      "port": 443,
+      "protocol": "vless-reality",
+      "uuid": "7e9c4a12-6b2d-4f88-9a10-3e5c7d9b1f22",
+      "sni": "dl.google.com",
+      "public_key": "mN8vK2pQ9xR4tL7wY1zB5cF6hJ3kM0pS2uV8xZ4aE1g=",
+      "short_id": "a1b2c3d4e5f60718"
+    },
+    "backup": {
+      "enabled": false,
+      "name": "Reserve Node (Optional)",
+      "host": "198.51.100.25",
+      "port": 443,
+      "protocol": "vless-reality",
+      "uuid": "7e9c4a12-6b2d-4f88-9a10-3e5c7d9b1f22",
+      "sni": "www.microsoft.com",
+      "public_key": "mN8vK2pQ9xR4tL7wY1zB5cF6hJ3kM0pS2uV8xZ4aE1g=",
+      "short_id": "a1b2c3d4e5f60718"
+    }
+  },
+  "services": [
+    {
+      "id": "youtube",
+      "name": "YouTube & YouTube Music (4K без буферизации)",
+      "category": "Видео и Стриминг",
+      "enabled": true,
+      "icon": "youtube",
+      "description": "Веб-версия, Smart TV, мобильные приложения iOS/Android и серверы кэширования googlevideo.com",
+      "domain_file": "youtube.lst",
+      "cidr_file": null
+    },
+    {
+      "id": "telegram",
+      "name": "Telegram (Звонки, кружочки, медиа, Web)",
+      "category": "Мессенджеры",
+      "enabled": true,
+      "icon": "telegram",
+      "description": "Все домены t.me/telegram.org + официальные IPv4/IPv6 подсети дата-центров Telegram (DC1-DC5)",
+      "domain_file": "telegram.lst",
+      "cidr_file": "telegram_cidr.lst"
+    },
+    {
+      "id": "instagram_meta",
+      "name": "Instagram, Threads & Facebook",
+      "category": "Соцсети",
+      "enabled": true,
+      "icon": "instagram",
+      "description": "Лента, Reels, Stories, Direct и все CDN-серверы Meta (cdninstagram.com, fbcdn.net)",
+      "domain_file": "instagram_meta.lst",
+      "cidr_file": null
+    },
+    {
+      "id": "discord",
+      "name": "Discord (Чат + Голосовые каналы + Стримы)",
+      "category": "Мессенджеры и Игры",
+      "enabled": true,
+      "icon": "discord",
+      "description": "Текстовые чаты, CDN вложений и UDP/WebRTC голосовые шлюзы discord.media",
+      "domain_file": "discord.lst",
+      "cidr_file": null
+    },
+    {
+      "id": "ai_services",
+      "name": "ChatGPT, Claude, Gemini, Midjourney",
+      "category": "Нейросети (AI)",
+      "enabled": true,
+      "icon": "cpu",
+      "description": "Прямой доступ к OpenAI, Anthropic Claude, Google Gemini и Perplexity без смены IP на РФ-сайтах",
+      "domain_file": "ai_services.lst",
+      "cidr_file": null
+    },
+    {
+      "id": "custom",
+      "name": "X (Twitter), Spotify, Netflix, Rutracker и свои сайты",
+      "category": "Пользовательский список",
+      "enabled": true,
+      "icon": "globe",
+      "description": "Дополнительные сервисы и ваши собственные домены (добавляются в 1 клик через веб-панель)",
+      "domain_file": "custom.lst",
+      "cidr_file": null
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  singbox-gateway:
+    image: ghcr.io/sagernet/sing-box:latest
+    container_name: tenda-singbox-gateway
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./configs/generated/singbox_gateway.json:/etc/sing-box/config.json:ro
+    command: run -c /etc/sing-box/config.json
+
+  dnsmasq-dhcp:
+    image: jpillora/dnsmasq:latest
+    container_name: tenda-dnsmasq
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./configs/generated/dnsmasq_tenda.conf:/etc/dnsmasq.conf:ro
+
+  gateway-webui:
+    image: python:3.11-slim
+    container_name: tenda-gateway-webui
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: python3 app/server.py

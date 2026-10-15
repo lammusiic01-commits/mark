@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tenda TX2 Smart Gateway — Выборочная маршрутизация без VPN на устройствах</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card: #131b2e;
+      --card-hover: #18233c;
+      --border: #243252;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --purple: #8b5cf6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 24px 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      font-weight: 800;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .status-pills {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #34d399;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-top: 22px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 9px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+    .tab-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    main {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .kpi-label { font-size: 13px; color: var(--muted); }
+    .kpi-value { font-size: 26px; font-weight: 700; margin-top: 6px; color: #fff; }
+    .kpi-sub { font-size: 12px; color: var(--success); margin-top: 4px; }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .service-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.2s;
+    }
+    .service-card.active {
+      border-color: rgba(59, 130, 246, 0.55);
+    }
+    .service-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .service-cat {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #60a5fa;
+      font-weight: 700;
+    }
+    .service-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+    .service-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 10px 0 14px;
+    }
+    .service-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #334155;
+      transition: .2s;
+      border-radius: 26px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--success); }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.06); }
+
+    .card-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .route-tester {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .input {
+      background: #090d16;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      flex: 1;
+      min-width: 240px;
+    }
+    .quick-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .chip {
+      font-size: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .chip:hover { color: #fff; border-color: var(--accent); }
+    .route-result {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 10px;
+      background: #090d16;
+      border: 1px solid var(--border);
+      display: none;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+    pre {
+      background: #080b12;
+      border: 1px solid var(--border);
+      padding: 14px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      color: #a5b4fc;
+      max-height: 420px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-width: 600px;
+      width: 100%;
+      padding: 22px;
+    }
+    textarea {
+      width: 100%;
+      height: 260px;
+      background: #090d16;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .arch-diagram {
+      background: #090d16;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #93c5fd;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="header-top">
+        <div class="brand">
+          <span class="brand-badge">TENDA TX2</span>
+          <div>
+            <h1>Smart Gateway — Выборочный обход без VPN на клиентах</h1>
+            <div class="subtitle">Работает одновременно по Wi-Fi 6 и по LAN-кабелю в ПК • FakeIP 0.3 мс • VLESS-Reality XTLS-Vision</div>
+          </div>
+        </div>
+        <div class="status-pills">
+          <a href="/download/Tenda-TX2-Smart-Gateway-Win11.zip" download="Tenda-TX2-Smart-Gateway-Win11.zip" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);">
+            ⬇ Скачать готовую сборку (.ZIP) для Windows 11
+          </a>
+          <div class="pill"><span class="pill-dot"></span> Маршрутизатор: Tenda TX2 (192.168.0.1)</div>
+          <div class="pill"><span class="pill-dot"></span> VPS: OneDash Хельсинки (Debian 12)</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('dashboard', this)">1. Сервисы и Проверка маршрутов</button>
+        <button class="tab-btn" onclick="switchTab('settings', this)">2. Настройки Tenda TX2 и VPS</button>
+        <button class="tab-btn" onclick="switchTab('configs', this)">3. Готовые Конфиги и Таблица Tenda</button>
+        <button class="tab-btn" onclick="switchTab('guide', this)">4. Пошаговая Инструкция по установке</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ВКЛАДКА 1: ДАШБОРД И СЕРВИСЫ -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Активные группы сервисов</div>
+          <div class="kpi-value" id="kpi-services">6 / 6</div>
+          <div class="kpi-sub">YouTube, TG, Insta, Discord, AI</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Доменов в быстром списке (FakeIP)</div>
+          <div class="kpi-value" id="kpi-domains">0</div>
+          <div class="kpi-sub">Время DNS-ответа &lt; 0.4 мс</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Подсетей CIDR (Telegram DC1–DC5)</div>
+          <div class="kpi-value" id="kpi-cidrs">0</div>
+          <div class="kpi-sub">Звонки, кружочки и медиа без лагов</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Прямой трафик РФ (Банки, Игры, Госуслуги)</div>
+          <div class="kpi-value">100% Direct</div>
+          <div class="kpi-sub">Задержка +0.15 мс (Flowtable Offload)</div>
+        </div>
+      </div>
+
+      <!-- Симулятор проверки маршрута -->
+      <div class="card-box">
+        <div class="section-title">
+          <span>Мгновенная проверка маршрутизации (Куда пойдёт трафик?)</span>
+        </div>
+        <p style="font-size: 13px; color: var(--muted);">
+          Введите любой домен или IP-адрес, чтобы проверить, пойдёт ли он через защищённый туннель VLESS-Reality или напрямую через вашего домашнего провайдера.
+        </p>
+        <div class="route-tester">
+          <input type="text" id="route-input" class="input" value="rr1---sn-gvnuxaxjvh-n8me.googlevideo.com" placeholder="Например: youtube.com, instagram.com, t.me, sberbank.ru, 149.154.167.50" />
+          <button class="btn" onclick="testRoute()">Проверить маршрут</button>
+        </div>
+        <div class="quick-chips">
+          <span class="chip" onclick="quickTest('youtube.com')">youtube.com</span>
+          <span class="chip" onclick="quickTest('rr2---sn-jvhnu5g.googlevideo.com')">googlevideo.com (4K видеопоток)</span>
+          <span class="chip" onclick="quickTest('instagram.com')">instagram.com</span>
+          <span class="chip" onclick="quickTest('149.154.167.99')">149.154.167.99 (Telegram Звонки)</span>
+          <span class="chip" onclick="quickTest('discord.media')">discord.media (Голос)</span>
+          <span class="chip" onclick="quickTest('chatgpt.com')">chatgpt.com</span>
+          <span class="chip" onclick="quickTest('sberbank.ru')">sberbank.ru (РФ Банк)</span>
+          <span class="chip" onclick="quickTest('gosuslugi.ru')">gosuslugi.ru (Госуслуги)</span>
+        </div>
+        <div id="route-result" class="route-result"></div>
+      </div>
+
+      <div class="section-title">
+        <span>Выборочные сервисы (Включайте и отключайте в 1 клик для всей домашней сети)</span>
+      </div>
+      <div id="services-container" class="services-grid"></div>
+    </div>
+
+    <!-- ВКЛАДКА 2: НАСТРОЙКИ TENDA TX2 И VPS -->
+    <div id="tab-settings" class="tab-panel">
+      <div class="card-box">
+        <div class="section-title">Локальная сеть роутера Tenda TX2</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>IP-адрес роутера Tenda TX2</label>
+            <input type="text" id="net-tenda-ip" class="input" />
+          </div>
+          <div class="form-group">
+            <label>IP-адрес локального шлюза (Sidecar Gateway)</label>
+            <input type="text" id="net-gw-ip" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Сетевой интерфейс шлюза</label>
+            <input type="text" id="net-iface" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Быстрый DNS для сайтов РФ (.ru / .рф)</label>
+            <input type="text" id="net-ru-dns" class="input" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <div class="section-title">
+          <span>Параметры зарубежного VPS (VLESS + XTLS-Vision + Reality)</span>
+          <button class="btn btn-outline" onclick="regenCredentials()">Сгенерировать новый UUID и ShortID</button>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>IP-адрес VPS (Нидерланды / Финляндия / Германия)</label>
+            <input type="text" id="vps-host" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Порт (рекомендуется 443)</label>
+            <input type="number" id="vps-port" class="input" />
+          </div>
+          <div class="form-group">
+            <label>UUID клиента</label>
+            <input type="text" id="vps-uuid" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Маскировочный домен SNI (Reality Handshake)</label>
+            <input type="text" id="vps-sni" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Public Key (X25519)</label>
+            <input type="text" id="vps-pubkey" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Short ID (hex)</label>
+            <input type="text" id="vps-shortid" class="input" />
+          </div>
+        </div>
+        <div style="margin-top: 18px;">
+          <button class="btn" onclick="saveSettings()">Сохранить и пересобрать все конфиги</button>
+          <span id="save-msg" style="margin-left: 12px; font-size: 13px; color: var(--success);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ВКЛАДКА 3: КОНФИГИ И ТАБЛИЦА МАРШРУТОВ TENDA TX2 -->
+    <div id="tab-configs" class="tab-panel">
+      <div class="card-box">
+        <div class="section-title">Таблица для меню «Статическая маршрутизация» в веб-панели Tenda TX2 (192.168.0.1)</div>
+        <p style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">
+          Заводская прошивка Tenda TX2 принимает маски подсети только в десятичном формате (например, <code>255.255.240.0</code> вместо <code>/20</code>). Ниже сгенерирована готовая таблица подсетей Telegram:
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Подсеть (CIDR)</th>
+              <th>Сеть назначения (Tenda TX2)</th>
+              <th>Маска подсети (Tenda TX2)</th>
+              <th>Шлюз (Gateway)</th>
+            </tr>
+          </thead>
+          <tbody id="tenda-routes-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="card-box">
+        <div class="section-title">
+          <span>Сгенерированные файлы конфигураций (обновляются автоматически)</span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="showConfigFile('singbox_windows11.json')">singbox_windows11.json (Windows 11)</button>
+            <button class="btn btn-outline" onclick="showConfigFile('singbox_gateway.json')">singbox_gateway.json (Linux VM)</button>
+            <button class="btn btn-outline" onclick="showConfigFile('dnsmasq_tenda.conf')">dnsmasq_tenda.conf</button>
+            <button class="btn btn-outline" onclick="showConfigFile('nftables_gateway.conf')">nftables_gateway.conf</button>
+            <button class="btn btn-outline" onclick="showConfigFile('singbox_vps.json')">singbox_vps.json</button>
+          </div>
+        </div>
+        <div id="current-config-name" style="font-size:13px; color:#60a5fa; margin-bottom:8px; font-weight:600;">singbox_windows11.json</div>
+        <pre id="config-viewer">Загрузка...</pre>
+      </div>
+    </div>
+
+    <!-- ВКЛАДКА 4: АРХИТЕКТУРА И ИНСТРУКЦИЯ -->
+    <div id="tab-guide" class="tab-panel">
+      <div class="card-box">
+        <div class="section-title">Почему на сам Tenda TX2 нельзя поставить VPN напрямую и как мы это решили</div>
+        <p style="font-size:14px; color:var(--text); margin-bottom:14px;">
+          Роутер <strong>Tenda TX2 (AX1500)</strong> построен на чипе Realtek с закрытой прошивкой (всего 8 МБ флеш-памяти, нет USB, нет SSH/Entware, не существует прошивки OpenWrt). Встроенный в него клиент PPTP/L2TP блокируется ТСПУ в РФ и заворачивает <strong>весь</strong> трафик целиком (из-за чего перестают работать российские банки, Госуслуги и растёт пинг).
+        </p>
+        <div class="arch-diagram">
+[Смартфоны / ТВ по Wi-Fi 6] ──┐
+                              ├──► [Роутер Tenda TX2 (192.168.0.1)]
+[Домашний ПК по LAN-кабелю] ──┘             │
+                                            ▼
+                           [Локальный Шлюз Sing-box (192.168.0.2)]
+                            ├──► 1. Сайты РФ, Игры, Торренты, Банки ──► НАПРЯМУЮ через провайдера (0 мс!)
+                            └──► 2. YouTube, TG, Insta, Discord, AI ──► VLESS-Reality XTLS-Vision (VPS)
+        </div>
+        <div style="margin-top: 16px; font-size: 14px; color: var(--muted);">
+          <p><strong>Два режима установки в нашем пакете (`install.sh`):</strong></p>
+          <ul style="margin-left: 20px; margin-top: 8px;">
+            <li><strong>Вариант 1 (Рекомендуемый — «Локальный прозрачный шлюз»):</strong> ставится одной командой на любой микро-ПК (Orange Pi Zero 3 / Raspberry Pi за ~2000₽, подключенный в LAN-порт Tenda TX2) или в Docker/WSL на домашний ПК. Работает протокол <strong>VLESS-Reality + FakeIP + BBR</strong>. Не блокируется ТСПУ, работает YouTube 4K, звонки в Telegram и голосовые каналы Discord на всех устройствах дома.</li>
+            <li><strong>Вариант 2 (Без домашних устройств — «SmartDNS + SNIProxy на VPS»):</strong> ставится только на зарубежный VPS. Дома на роутере Tenda TX2 в меню <code>Настройки интернета -> DNS</code> прописывается IP вашего VPS. Никакого дополнительного оборудования дома не нужно!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Модальное окно редактирования доменов -->
+  <div id="domain-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="section-title">
+        <span id="modal-title">Редактирование доменов</span>
+        <button class="btn btn-outline" onclick="closeModal()">Закрыть</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted);">По одному домену на строку (все поддомены включаются автоматически):</p>
+      <textarea id="modal-textarea"></textarea>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="btn btn-outline" onclick="closeModal()">Отмена</button>
+        <button class="btn" onclick="saveDomains()">Сохранить список и обновить шлюз</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let appState = null;
+    let configFiles = {};
+    let editingServiceId = null;
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-panel').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      btn.classList.add('active');
+      if (tabId === 'configs') loadConfigs();
+    }
+
+    async function loadState() {
+      const res = await fetch('/api/state');
+      appState = await res.json();
+      renderDashboard();
+      renderSettings();
+      renderTendaRoutes();
+    }
+
+    function renderDashboard() {
+      const s = appState.summary;
+      document.getElementById('kpi-services').textContent = `${s.active_services} / ${s.total_services}`;
+      document.getElementById('kpi-domains').textContent = s.active_domains;
+      document.getElementById('kpi-cidrs').textContent = s.active_cidrs;
+
+      const container = document.getElementById('services-container');
+      container.innerHTML = '';
+      appState.services.forEach(svc => {
+        const card = document.createElement('div');
+        card.className = 'service-card ' + (svc.enabled ? 'active' : '');
+        card.innerHTML = `
+          <div>
+            <div class="service-header">
+              <div>
+                <div class="service-cat">${svc.category}</div>
+                <div class="service-name">${svc.name}</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" ${svc.enabled ? 'checked' : ''} onchange="toggleService('${svc.id}', this.checked)" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="service-desc">${svc.description}</div>
+          </div>
+          <div class="service-footer">
+            <span>Доменов: <strong>${svc.domain_count}</strong> ${svc.cidr_count ? `• Подсетей: <strong>${svc.cidr_count}</strong>` : ''}</span>
+            <button class="btn btn-outline" style="padding:5px 10px; font-size:12px;" onclick="openDomainModal('${svc.id}')">Изменить список</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderSettings() {
+      const net = appState.network;
+      const vps = appState.vps.primary;
+      document.getElementById('net-tenda-ip').value = net.tenda_router_ip;
+      document.getElementById('net-gw-ip').value = net.gateway_ip;
+      document.getElementById('net-iface').value = net.lan_interface;
+      document.getElementById('net-ru-dns').value = net.ru_dns_primary;
+
+      document.getElementById('vps-host').value = vps.host;
+      document.getElementById('vps-port').value = vps.port;
+      document.getElementById('vps-uuid').value = vps.uuid;
+      document.getElementById('vps-sni').value = vps.sni;
+      document.getElementById('vps-pubkey').value = vps.public_key;
+      document.getElementById('vps-shortid').value = vps.short_id;
+    }
+
+    function renderTendaRoutes() {
+      const tbody = document.getElementById('tenda-routes-tbody');
+      tbody.innerHTML = '';
+      (appState.summary.tenda_routes || []).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><code>${r.cidr}</code></td>
+          <td><strong>${r.network}</strong></td>
+          <td><code>${r.netmask}</code></td>
+          <td><code>${r.gateway}</code></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function toggleService(id, enabled) {
+      await fetch('/api/service/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id, enabled})
+      });
+      await loadState();
+      testRoute();
+    }
+
+    function openDomainModal(serviceId) {
+      const svc = appState.services.find(s => s.id === serviceId);
+      if (!svc) return;
+      editingServiceId = serviceId;
+      document.getElementById('modal-title').textContent = svc.name;
+      document.getElementById('modal-textarea').value = (svc.domains || []).join('\n');
+      document.getElementById('domain-modal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('domain-modal').style.display = 'none';
+    }
+
+    async function saveDomains() {
+      const raw = document.getElementById('modal-textarea').value.split('\n');
+      await fetch('/api/service/domains', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: editingServiceId, domains: raw})
+      });
+      closeModal();
+      await loadState();
+      testRoute();
+    }
+
+    function quickTest(val) {
+      document.getElementById('route-input').value = val;
+      testRoute();
+    }
+
+    async function testRoute() {
+      const target = document.getElementById('route-input').value.trim();
+      if (!target) return;
+      const res = await fetch('/api/check-route?target=' + encodeURIComponent(target));
+      const data = await res.json();
+      const box = document.getElementById('route-result');
+      box.style.display = 'block';
+      const isProxy = data.route === 'PROXY_TUNNEL';
+      const badgeColor = isProxy ? '#3b82f6' : '#10b981';
+      box.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <span style="background:${badgeColor}; color:#fff; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:700;">
+              ${isProxy ? 'ЧЕРЕЗ ТУННЕЛЬ (VLESS-REALITY)' : 'НАПРЯМУЮ ЧЕРЕЗ ПРОВАЙДЕРА РФ'}
+            </span>
+            <strong style="margin-left:10px; font-size:15px;">${data.target}</strong>
+          </div>
+          <div style="font-size:13px; color:var(--muted);">Категория: <strong style="color:#fff;">${data.service}</strong></div>
+        </div>
+        <div style="margin-top:10px; font-size:13px; color:var(--muted); display:flex; gap:20px; flex-wrap:wrap;">
+          <span>Исходящий интерфейс: <code>${data.outbound}</code></span>
+          <span>Сработавшее правило: <code>${data.matched_rule}</code></span>
+          <span>Задержка маршрутизации: <strong style="color:#34d399;">${data.latency_overhead}</strong></span>
+        </div>
+      `;
+    }
+
+    async function regenCredentials() {
+      const res = await fetch('/api/generate-credentials', {method: 'POST', body: '{}'});
+      const data = await res.json();
+      document.getElementById('vps-uuid').value = data.uuid;
+      document.getElementById('vps-shortid').value = data.short_id;
+    }
+
+    async function saveSettings() {
+      const payload = {
+        network: {
+          tenda_router_ip: document.getElementById('net-tenda-ip').value.trim(),
+          gateway_ip: document.getElementById('net-gw-ip').value.trim(),
+          lan_interface: document.getElementById('net-iface').value.trim(),
+          ru_dns_primary: document.getElementById('net-ru-dns').value.trim(),
+        },
+        vps: {
+          primary: {
+            host: document.getElementById('vps-host').value.trim(),
+            port: parseInt(document.getElementById('vps-port').value, 10) || 443,
+            uuid: document.getElementById('vps-uuid').value.trim(),
+            sni: document.getElementById('vps-sni').value.trim(),
+            public_key: document.getElementById('vps-pubkey').value.trim(),
+            short_id: document.getElementById('vps-shortid').value.trim(),
+          }
+        }
+      };
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const msg = document.getElementById('save-msg');
+      msg.textContent = 'Настройки сохранены, конфиги Sing-box и Dnsmasq обновлены!';
+      setTimeout(() => { msg.textContent = ''; }, 4000);
+      await loadState();
+    }
+
+    async function loadConfigs() {
+      const res = await fetch('/api/configs');
+      const data = await res.json();
+      configFiles = data.files || {};
+      showConfigFile('singbox_windows11.json');
+    }
+
+    function showConfigFile(name) {
+      document.getElementById('current-config-name').textContent = name;
+      document.getElementById('config-viewer').textContent = configFiles[name] || '';
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadState();
+      await testRoute();
+    });
+  </script>
+</body>
+</html>
